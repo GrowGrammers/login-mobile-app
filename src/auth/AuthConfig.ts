@@ -104,7 +104,7 @@ export class ReactNativeAuthFactory {
   private static createCustomMockBridge(): any {
     let mockAuthListeners: Array<(status: any, data?: any) => void> = [];
     let mockIsLoggedIn = false;
-    let mockUserProfile: any = null;
+    let mockUserInfo: any = null;
     
     return {
       isHealthy: async () => true,
@@ -143,11 +143,12 @@ export class ReactNativeAuthFactory {
         setTimeout(() => {
           console.log('[CustomMockBridge] OAuth 성공 시뮬레이션');
           
-          // 가짜 사용자 프로필 생성 (auth-core SessionInfo 형식에 맞춤)
-          mockUserProfile = {
+          // 가짜 사용자 정보 생성 (auth-core SessionInfo 형식에 맞춤)
+          mockUserInfo = {
             sub: 'mock-user-123',  // auth-core 표준 필드
-            name: '홍길동',
+            id: 'mock-user-123',
             email: 'test@example.com',
+            nickname: '홍길동',
             provider: provider
           };
           mockIsLoggedIn = true;
@@ -155,7 +156,7 @@ export class ReactNativeAuthFactory {
           // OAuth 성공 이벤트 발생
           mockAuthListeners.forEach(listener => {
             try {
-              listener('success', { user: mockUserProfile, provider });
+              listener('success', { user: mockUserInfo, provider });
             } catch (error) {
               console.error('[CustomMockBridge] 이벤트 리스너 오류:', error);
             }
@@ -168,7 +169,7 @@ export class ReactNativeAuthFactory {
         console.log('[CustomMockBridge] 세션 정보 조회');
         return {
           isLoggedIn: mockIsLoggedIn,
-          userProfile: mockUserProfile
+          userInfo: mockUserInfo
         };
       },
       addAuthStatusListener: (listener: (status: any, data?: any) => void) => {
@@ -185,7 +186,7 @@ export class ReactNativeAuthFactory {
       signOut: async () => {
         console.log('[CustomMockBridge] 로그아웃');
         mockIsLoggedIn = false;
-        mockUserProfile = null;
+        mockUserInfo = null;
         
         // 로그아웃 이벤트 발생
         mockAuthListeners.forEach(listener => {
@@ -202,7 +203,7 @@ export class ReactNativeAuthFactory {
         console.log('[CustomMockBridge] 정리');
         mockAuthListeners = [];
         mockIsLoggedIn = false;
-        mockUserProfile = null;
+        mockUserInfo = null;
       }
     };
   }
@@ -283,7 +284,7 @@ export class ReactNativeAuthFactory {
       const session = await authManager.getCurrentSession();
       console.log('[ReactNativeAuthFactory] 현재 세션:', {
         isLoggedIn: session?.isLoggedIn || false,
-        hasProfile: !!(session?.userProfile)
+        hasUserInfo: !!(session?.userInfo)
       });
 
       console.log('[ReactNativeAuthFactory] 헬스 체크 완료');

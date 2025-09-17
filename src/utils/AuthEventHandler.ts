@@ -16,7 +16,7 @@ export interface AuthState {
   isLoading: boolean;
   
   // === 사용자 정보 ===
-  userProfile: SessionInfo['userProfile'] | null;
+  userInfo: SessionInfo['userInfo'] | null;
   
   // === OAuth 플로우 상태 ===
   isOAuthInProgress: boolean;
@@ -39,7 +39,7 @@ export interface AuthState {
 const initialAuthState: AuthState = {
   isLoggedIn: false,
   isLoading: false,
-  userProfile: null,
+  userInfo: null,
   isOAuthInProgress: false,
   oauthProvider: null,
   error: null,
@@ -90,7 +90,7 @@ export function useAuthState(authManager: AuthManager | null): {
           newState.isLoading = false;
           newState.error = null;
           if (data?.user) {
-            newState.userProfile = data.user;
+            newState.userInfo = data.user;
           }
           break;
           
@@ -106,7 +106,7 @@ export function useAuthState(authManager: AuthManager | null): {
           
         case 'signed_out':
           newState.isLoggedIn = false;
-          newState.userProfile = null;
+          newState.userInfo = null;
           newState.isOAuthInProgress = false;
           newState.isLoading = false;
           newState.error = null;
@@ -131,7 +131,7 @@ export function useAuthState(authManager: AuthManager | null): {
       setAuthState(prev => ({
         ...prev,
         isLoggedIn: session?.isLoggedIn || false,
-        userProfile: session?.userProfile || null,
+        userInfo: session?.userInfo || null,
         isLoading: false,
         error: null
       }));
@@ -261,7 +261,7 @@ export class AuthActions {
         
         this.notifyStateChange({ 
           isLoggedIn: false,
-          userProfile: null,
+          userInfo: null,
           isLoading: false,
           error: null
         });
@@ -325,7 +325,7 @@ export class AuthActions {
       
       this.notifyStateChange({
         isLoggedIn: session?.isLoggedIn || false,
-        userProfile: session?.userProfile || null
+        userInfo: session?.userInfo || null
       });
       
       return session;

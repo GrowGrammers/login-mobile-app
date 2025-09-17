@@ -142,17 +142,17 @@ function LoginMobileApp({ authManager }: { authManager: AuthManager }) {
         </View>
         
         <View style={styles.content}>
-          {authState.userProfile && (
+          {authState.userInfo && (
             <View style={styles.profileCard}>
               <Text style={styles.profileTitle}>사용자 정보</Text>
               <Text style={styles.profileText}>
-                이름: {authState.userProfile.name || '미설정'}
+                닉네임: {authState.userInfo.nickname || '미설정'}
               </Text>
               <Text style={styles.profileText}>
-                이메일: {authState.userProfile.email || '미설정'}
+                이메일: {authState.userInfo.email || '미설정'}
               </Text>
               <Text style={styles.profileText}>
-                제공자: {authState.userProfile.provider || '미설정'}
+                제공자: {authState.userInfo.provider || '미설정'}
               </Text>
             </View>
           )}
