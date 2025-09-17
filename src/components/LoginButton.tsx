@@ -16,7 +16,7 @@ interface LoginButtonProps {
   onPress: () => void;
   isLoading?: boolean;
   disabled?: boolean;
-  provider: 'google' | 'kakao';
+  provider: 'google' | 'kakao' | 'email';
 }
 
 export function LoginButton({ 
@@ -25,13 +25,76 @@ export function LoginButton({
   disabled = false,
   provider 
 }: LoginButtonProps) {
-  const isGoogleLogin = provider === 'google';
+  const getButtonStyle = () => {
+    switch (provider) {
+      case 'google':
+        return styles.googleButton;
+      case 'kakao':
+        return styles.kakaoButton;
+      case 'email':
+        return styles.emailButton;
+      default:
+        return styles.googleButton;
+    }
+  };
+
+  const getTextStyle = () => {
+    switch (provider) {
+      case 'google':
+        return styles.googleText;
+      case 'kakao':
+        return styles.kakaoText;
+      case 'email':
+        return styles.emailText;
+      default:
+        return styles.googleText;
+    }
+  };
+
+  const getIcon = () => {
+    switch (provider) {
+      case 'google':
+        return '🔍';
+      case 'kakao':
+        return '💬';
+      case 'email':
+        return '📧';
+      default:
+        return '🔍';
+    }
+  };
+
+  const getProviderName = () => {
+    switch (provider) {
+      case 'google':
+        return 'Google';
+      case 'kakao':
+        return 'Kakao';
+      case 'email':
+        return '이메일';
+      default:
+        return 'Google';
+    }
+  };
+
+  const getTextColor = () => {
+    switch (provider) {
+      case 'google':
+        return '#fff';
+      case 'kakao':
+        return '#000';
+      case 'email':
+        return '#fff';
+      default:
+        return '#fff';
+    }
+  };
   
   return (
     <TouchableOpacity
       style={[
         styles.button,
-        isGoogleLogin ? styles.googleButton : styles.kakaoButton,
+        getButtonStyle(),
         (disabled || isLoading) && styles.disabledButton
       ]}
       onPress={onPress}
@@ -42,22 +105,22 @@ export function LoginButton({
         {isLoading ? (
           <ActivityIndicator 
             size="small" 
-            color={isGoogleLogin ? '#fff' : '#000'} 
+            color={getTextColor()} 
             style={styles.spinner}
           />
         ) : (
           <Text style={styles.icon}>
-            {isGoogleLogin ? '🔍' : '💬'}
+            {getIcon()}
           </Text>
         )}
         
         <Text style={[
           styles.buttonText,
-          isGoogleLogin ? styles.googleText : styles.kakaoText
+          getTextStyle()
         ]}>
           {isLoading 
-            ? `${provider === 'google' ? 'Google' : 'Kakao'} 로그인 중...`
-            : `${provider === 'google' ? 'Google' : 'Kakao'}로 로그인`
+            ? `${getProviderName()} 로그인 중...`
+            : `${getProviderName()}로 로그인`
           }
         </Text>
       </View>
@@ -122,6 +185,9 @@ const styles = StyleSheet.create({
   kakaoButton: {
     backgroundColor: '#fee500',
   },
+  emailButton: {
+    backgroundColor: '#6c5ce7',
+  },
   logoutButton: {
     backgroundColor: '#ff6b6b',
   },
@@ -149,6 +215,9 @@ const styles = StyleSheet.create({
   },
   kakaoText: {
     color: '#000',
+  },
+  emailText: {
+    color: '#fff',
   },
   logoutText: {
     color: '#fff',

@@ -315,6 +315,122 @@ export class AuthActions {
   }
 
   /**
+   * 이메일 인증번호 요청
+   */
+  async requestEmailVerification(email: string): Promise<boolean> {
+    try {
+      console.log(`[AuthActions] 이메일 인증번호 요청:`, email);
+      
+      this.notifyStateChange({ isLoading: true });
+      
+      const result = await this.authManager.requestEmailVerification({ email });
+      
+      if (result.success) {
+        console.log(`[AuthActions] 인증번호 요청 성공`);
+        this.notifyStateChange({ isLoading: false });
+        return true;
+      } else {
+        console.error(`[AuthActions] 인증번호 요청 실패:`, result.message);
+        this.notifyStateChange({ 
+          isLoading: false,
+          error: result.message || '인증번호 요청에 실패했습니다.'
+        });
+        return false;
+      }
+    } catch (error) {
+      console.error(`[AuthActions] 인증번호 요청 중 오류:`, error);
+      this.notifyStateChange({ 
+        isLoading: false,
+        error: error instanceof Error ? error.message : '인증번호 요청 중 오류가 발생했습니다.'
+      });
+      return false;
+    }
+  }
+
+  /**
+   * 이메일 인증번호 확인
+   */
+  async verifyEmailCode(email: string, verificationCode: string): Promise<boolean> {
+    try {
+      console.log(`[AuthActions] 이메일 인증번호 확인:`, email);
+      
+      this.notifyStateChange({ isLoading: true });
+      
+      const result = await this.authManager.verifyEmail({ 
+        email, 
+        verifyCode: verificationCode 
+      });
+      
+      if (result.success) {
+        console.log(`[AuthActions] 인증번호 확인 성공`);
+        this.notifyStateChange({ isLoading: false });
+        return true;
+      } else {
+        console.error(`[AuthActions] 인증번호 확인 실패:`, result.message);
+        this.notifyStateChange({ 
+          isLoading: false,
+          error: result.message || '인증번호가 올바르지 않습니다.'
+        });
+        return false;
+      }
+    } catch (error) {
+      console.error(`[AuthActions] 인증번호 확인 중 오류:`, error);
+      this.notifyStateChange({ 
+        isLoading: false,
+        error: error instanceof Error ? error.message : '인증번호 확인 중 오류가 발생했습니다.'
+      });
+      return false;
+    }
+  }
+
+  /**
+   * 이메일 로그인
+   */
+  async loginWithEmail(email: string, verificationCode: string): Promise<boolean> {
+    try {
+      console.log(`[AuthActions] 이메일 로그인:`, email);
+      
+      this.notifyStateChange({ isLoading: true });
+      
+      const result = await this.authManager.login({
+        provider: 'email',
+        email,
+        verifyCode: verificationCode
+      });
+      
+      if (result.success) {
+        console.log(`[AuthActions] 이메일 로그인 성공`);
+        
+        // 로그인 성공 후 세션 정보 조회
+        const session = await this.authManager.getCurrentSession();
+        
+        this.notifyStateChange({
+          isLoading: false,
+          isLoggedIn: true,
+          userInfo: session?.userInfo || null,
+          error: null
+        });
+        
+        return true;
+      } else {
+        console.error(`[AuthActions] 이메일 로그인 실패:`, result.message);
+        this.notifyStateChange({ 
+          isLoading: false,
+          error: result.message || '로그인에 실패했습니다.'
+        });
+        return false;
+      }
+    } catch (error) {
+      console.error(`[AuthActions] 이메일 로그인 중 오류:`, error);
+      this.notifyStateChange({ 
+        isLoading: false,
+        error: error instanceof Error ? error.message : '로그인 중 오류가 발생했습니다.'
+      });
+      return false;
+    }
+  }
+
+  /**
    * 세션 새로고침
    */
   async refreshSession(): Promise<SessionInfo | null> {

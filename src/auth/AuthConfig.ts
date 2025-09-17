@@ -13,7 +13,7 @@ import type { OAuthProvider } from '@growgrammers/auth-core';
  */
 export interface ReactNativeAuthConfig {
   // === OAuth 설정 ===
-  provider: OAuthProvider;
+  provider: OAuthProvider | 'email';
   googleClientId?: string;
   kakaoClientId?: string;
   
@@ -34,17 +34,19 @@ export interface ReactNativeAuthConfig {
  */
 export class ReactNativeAuthFactory {
   private static bridge: NativeAuthBridge | null = null;
-  private static authManager: AuthManager | null = null;
+  private static emailAuthManager: AuthManager | null = null;
+  private static googleAuthManager: AuthManager | null = null;
 
   /**
-   * AuthManager 생성 및 초기화 (실제 생성 로직직)
+   * 이메일 AuthManager 생성 및 초기화
    */
-  static async createAuthManager(config: ReactNativeAuthConfig): Promise<AuthManager> {
-    console.log('[ReactNativeAuthFactory] AuthManager 생성 시작:', {
-      provider: config.provider,
-      apiBaseUrl: config.apiBaseUrl,
-      useMockBridge: config.useMockBridge
-    });
+  static async createEmailAuthManager(config: ReactNativeAuthConfig): Promise<AuthManager> {
+    console.log('[ReactNativeAuthFactory] Email AuthManager 생성 시작');
+    
+    if (this.emailAuthManager) {
+      console.log('[ReactNativeAuthFactory] 기존 Email AuthManager 반환');
+      return this.emailAuthManager;
+    }
 
     try {
       // 1. Bridge 초기화
@@ -53,8 +55,11 @@ export class ReactNativeAuthFactory {
       // 2. HttpClient 생성
       const httpClient = new ReactNativeHttpClient(bridge);
       
-      // 3. AuthManager 설정 구성
-      const authConfig = this.buildAuthManagerConfig(config, httpClient, bridge);
+      // 3. 이메일 AuthManager 설정 구성
+      const authConfig = this.buildAuthManagerConfig({
+        ...config,
+        provider: 'email'
+      }, httpClient, bridge);
       
       // 4. AuthManager 생성
       const authManager = new AuthManager(authConfig);
@@ -64,15 +69,66 @@ export class ReactNativeAuthFactory {
       
       // 6. 인스턴스 저장
       this.bridge = bridge;
-      this.authManager = authManager;
+      this.emailAuthManager = authManager;
       
-      console.log('[ReactNativeAuthFactory] AuthManager 생성 완료');
+      console.log('[ReactNativeAuthFactory] Email AuthManager 생성 완료');
       return authManager;
       
     } catch (error) {
-      console.error('[ReactNativeAuthFactory] AuthManager 생성 실패:', error);
+      console.error('[ReactNativeAuthFactory] Email AuthManager 생성 실패:', error);
       throw error;
     }
+  }
+
+  /**
+   * 구글 AuthManager 생성 및 초기화
+   */
+  static async createGoogleAuthManager(config: ReactNativeAuthConfig): Promise<AuthManager> {
+    console.log('[ReactNativeAuthFactory] Google AuthManager 생성 시작');
+    
+    if (this.googleAuthManager) {
+      console.log('[ReactNativeAuthFactory] 기존 Google AuthManager 반환');
+      return this.googleAuthManager;
+    }
+
+    try {
+      // 1. Bridge 초기화
+      const bridge = await this.initializeBridge(config);
+      
+      // 2. HttpClient 생성
+      const httpClient = new ReactNativeHttpClient(bridge);
+      
+      // 3. 구글 AuthManager 설정 구성
+      const authConfig = this.buildAuthManagerConfig({
+        ...config,
+        provider: 'google'
+      }, httpClient, bridge);
+      
+      // 4. AuthManager 생성
+      const authManager = new AuthManager(authConfig);
+      
+      // 5. 헬스 체크
+      await this.performHealthCheck(authManager, bridge);
+      
+      // 6. 인스턴스 저장
+      this.bridge = bridge;
+      this.googleAuthManager = authManager;
+      
+      console.log('[ReactNativeAuthFactory] Google AuthManager 생성 완료');
+      return authManager;
+      
+    } catch (error) {
+      console.error('[ReactNativeAuthFactory] Google AuthManager 생성 실패:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * AuthManager 생성 및 초기화 (기존 호환성 유지)
+   */
+  static async createAuthManager(config: ReactNativeAuthConfig): Promise<AuthManager> {
+    // 기본적으로 이메일 AuthManager 생성
+    return this.createEmailAuthManager(config);
   }
 
   /**
@@ -106,12 +162,42 @@ export class ReactNativeAuthFactory {
     let mockIsLoggedIn = false;
     let mockUserInfo: any = null;
     
+    // 세션 상태 업데이트 헬퍼 함수
+    const updateSessionState = (userInfo: any) => {
+      mockIsLoggedIn = true;
+      mockUserInfo = userInfo;
+      console.log('[CustomMockBridge] 세션 상태 업데이트:', { isLoggedIn: mockIsLoggedIn, userInfo: mockUserInfo });
+    };
+    
     return {
       isHealthy: async () => true,
       callWithAuth: async (request: any) => {
         console.log('[CustomMockBridge] API 호출:', request.url);
-        // 로그아웃 요청에 대해 성공 응답 반환
-        if (request.url.includes('/api/v1/auth/google/logout')) {
+        console.log('[CustomMockBridge] 요청 전체:', request);
+        
+        // URL 체크 디버깅
+        console.log('[CustomMockBridge] 로그아웃 URL 체크:', {
+          url: request.url,
+          includesLogout: request.url.includes('/api/v1/auth/members/logout'),
+          urlType: typeof request.url
+        });
+        
+        // 이메일 로그아웃 요청 (우선 처리)
+        if (request.url.includes('/api/v1/auth/members/logout')) {
+          console.log('[CustomMockBridge] 이메일 로그아웃 처리');
+          // 세션 초기화
+          mockIsLoggedIn = false;
+          mockUserInfo = null;
+          
+          // 로그아웃 이벤트 발생
+          mockAuthListeners.forEach(listener => {
+            try {
+              listener('signed_out', {});
+            } catch (error) {
+              console.error('[CustomMockBridge] 이벤트 리스너 오류:', error);
+            }
+          });
+          
           return {
             status: 200,
             ok: true,
@@ -119,11 +205,136 @@ export class ReactNativeAuthFactory {
             headers: {}
           };
         }
+        
+        // 이메일 인증번호 요청
+        if (request.url.includes('/api/v1/auth/email/request')) {
+          console.log('[CustomMockBridge] 이메일 인증번호 요청 처리');
+          return {
+            status: 200,
+            ok: true,
+            data: { 
+              success: true, 
+              message: '인증번호가 발송되었습니다.' 
+            },
+            headers: {}
+          };
+        }
+        
+        // 이메일 인증번호 확인
+        if (request.url.includes('/api/v1/auth/email/verify')) {
+          console.log('[CustomMockBridge] 이메일 인증번호 확인 처리');
+          const body = request.body ? JSON.parse(request.body) : {};
+          // 간단한 테스트를 위해 123456을 올바른 인증번호로 설정
+          if (body.verifyCode === '123456') {
+            return {
+              status: 200,
+              ok: true,
+              data: { 
+                success: true, 
+                message: '인증번호가 확인되었습니다.' 
+              },
+              headers: {}
+            };
+          } else {
+            return {
+              status: 400,
+              ok: false,
+              data: { 
+                success: false, 
+                message: '인증번호가 올바르지 않습니다.' 
+              },
+              headers: {}
+            };
+          }
+        }
+        
+        // 이메일 로그인
+        if (request.url.includes('/api/v1/auth/members/email-login')) {
+          console.log('[CustomMockBridge] 이메일 로그인 처리');
+          const body = request.body ? JSON.parse(request.body) : {};
+          // 인증번호가 123456인 경우 로그인 성공
+          if (body.verifyCode === '123456') {
+            const emailUserInfo = {
+              sub: 'email-user-123',
+              id: 'email-user-123',
+              email: body.email,
+              nickname: '이메일 사용자',
+              provider: 'email'
+            };
+            
+            // 세션 상태 업데이트
+            updateSessionState(emailUserInfo);
+            
+            // 이메일 로그인 성공 이벤트 발생 (OAuth success와 동일)
+            mockAuthListeners.forEach(listener => {
+              try {
+                listener('success', { user: emailUserInfo, provider: 'email' });
+              } catch (error) {
+                console.error('[CustomMockBridge] 이벤트 리스너 오류:', error);
+              }
+            });
+            
+            return {
+              status: 200,
+              ok: true,
+              data: { 
+                success: true,
+                data: {
+                  accessToken: 'mock-access-token',
+                  refreshToken: 'mock-refresh-token',
+                  user: emailUserInfo
+                }
+              },
+              headers: {}
+            };
+          } else {
+            return {
+              status: 400,
+              ok: false,
+              data: { 
+                success: false, 
+                message: '로그인에 실패했습니다.' 
+              },
+              headers: {}
+            };
+          }
+        }
+
+        // 구글 로그아웃 요청
+        if (request.url.includes('/api/v1/auth/google/logout')) {
+          console.log('[CustomMockBridge] 구글 로그아웃 처리');
+          // 세션 초기화
+          mockIsLoggedIn = false;
+          mockUserInfo = null;
+          
+          // 로그아웃 이벤트 발생
+          mockAuthListeners.forEach(listener => {
+            try {
+              listener('signed_out', {});
+            } catch (error) {
+              console.error('[CustomMockBridge] 이벤트 리스너 오류:', error);
+            }
+          });
+          
+          return {
+            status: 200,
+            ok: true,
+            data: { success: true },
+            headers: {}
+          };
+        }
+        
+        
         // 다른 요청에 대한 기본 응답
+        console.log('[CustomMockBridge] 기본 응답 처리');
         return {
           status: 200,
           ok: true,
-          data: { message: 'Mock API 호출 성공' },
+          data: { 
+            success: true,
+            message: 'Mock API 호출 성공',
+            data: null
+          },
           headers: {}
         };
       },
@@ -144,14 +355,16 @@ export class ReactNativeAuthFactory {
           console.log('[CustomMockBridge] OAuth 성공 시뮬레이션');
           
           // 가짜 사용자 정보 생성 (auth-core SessionInfo 형식에 맞춤)
-          mockUserInfo = {
+          const oauthUserInfo = {
             sub: 'mock-user-123',  // auth-core 표준 필드
             id: 'mock-user-123',
             email: 'test@example.com',
             nickname: '홍길동',
             provider: provider
           };
-          mockIsLoggedIn = true;
+          
+          // 세션 상태 업데이트
+          updateSessionState(oauthUserInfo);
           
           // OAuth 성공 이벤트 발생
           mockAuthListeners.forEach(listener => {
@@ -166,7 +379,10 @@ export class ReactNativeAuthFactory {
         return { success: true };
       },
       getSession: async () => {
-        console.log('[CustomMockBridge] 세션 정보 조회');
+        console.log('[CustomMockBridge] 세션 정보 조회:', {
+          isLoggedIn: mockIsLoggedIn,
+          hasUserInfo: !!mockUserInfo
+        });
         return {
           isLoggedIn: mockIsLoggedIn,
           userInfo: mockUserInfo
@@ -218,7 +434,7 @@ export class ReactNativeAuthFactory {
   ): AuthManagerConfig {
     const baseConfig: AuthManagerConfig = {
       // === 기본 설정 ===
-      providerType: config.provider === 'google' ? 'google' : 'email',
+      providerType: config.provider === 'kakao' ? 'google' : config.provider, // kakao는 google로 처리
       platform: 'react-native',
       
       // === 의존성 주입 ===
@@ -296,10 +512,17 @@ export class ReactNativeAuthFactory {
   // === 싱글톤 인스턴스 관리 ===
 
   /**
-   * 현재 AuthManager 인스턴스 반환
+   * 현재 이메일 AuthManager 인스턴스 반환
    */
-  static getCurrentAuthManager(): AuthManager | null {
-    return this.authManager;
+  static getCurrentEmailAuthManager(): AuthManager | null {
+    return this.emailAuthManager;
+  }
+
+  /**
+   * 현재 구글 AuthManager 인스턴스 반환
+   */
+  static getCurrentGoogleAuthManager(): AuthManager | null {
+    return this.googleAuthManager;
   }
 
   /**
@@ -320,7 +543,8 @@ export class ReactNativeAuthFactory {
     }
     
     this.bridge = null;
-    this.authManager = null;
+    this.emailAuthManager = null;
+    this.googleAuthManager = null;
   }
 }
 
@@ -346,19 +570,40 @@ export async function initializeAuth(config: ReactNativeAuthConfig): Promise<Aut
  */
 
 /**
- * 개발용 Mock AuthManager 초기화
- * 커스텀 Mock Bridge를 사용한 현실적인 OAuth 시뮬레이션
+ * 개발용 Mock AuthManager 초기화 (이메일용)
  */
-export async function initializeMockAuth(config: Partial<ReactNativeAuthConfig> = {}): Promise<AuthManager> {
+export async function initializeMockEmailAuth(config: Partial<ReactNativeAuthConfig> = {}): Promise<AuthManager> {
   const mockConfig: ReactNativeAuthConfig = {
-    provider: 'google',
+    provider: 'email',
     apiBaseUrl: 'https://api.example.com',
-    useMockBridge: true, // 커스텀 Mock Bridge 사용
+    useMockBridge: true,
     enableDebugLogs: true,
     ...config
   };
-  // 팩토리 함수 호출하여 AuthManager 생성 요청
-  return ReactNativeAuthFactory.createAuthManager(mockConfig);
+  return ReactNativeAuthFactory.createEmailAuthManager(mockConfig);
+}
+
+/**
+ * 개발용 Mock AuthManager 초기화 (구글용)
+ */
+export async function initializeMockGoogleAuth(config: Partial<ReactNativeAuthConfig> = {}): Promise<AuthManager> {
+  const mockConfig: ReactNativeAuthConfig = {
+    provider: 'google',
+    apiBaseUrl: 'https://api.example.com',
+    googleClientId: 'mock-client-id-for-development',
+    useMockBridge: true,
+    enableDebugLogs: true,
+    ...config
+  };
+  return ReactNativeAuthFactory.createGoogleAuthManager(mockConfig);
+}
+
+/**
+ * 개발용 Mock AuthManager 초기화 (기존 호환성 유지)
+ */
+export async function initializeMockAuth(config: Partial<ReactNativeAuthConfig> = {}): Promise<AuthManager> {
+  // 기본적으로 이메일 AuthManager 반환
+  return initializeMockEmailAuth(config);
 }
 
 /**

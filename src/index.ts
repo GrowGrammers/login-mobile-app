@@ -11,6 +11,8 @@ export {
   ReactNativeAuthFactory,
   initializeAuth,
   initializeMockAuth,
+  initializeMockEmailAuth,
+  initializeMockGoogleAuth,
   defaultAuthConfig
 } from './auth/AuthConfig';
 export type { ReactNativeAuthConfig } from './auth/AuthConfig';
@@ -28,6 +30,10 @@ export type { AuthState } from './utils/AuthEventHandler';
 
 // === UI 컴포넌트 ===
 export { LoginButton, LogoutButton } from './components/LoginButton';
+
+// === 화면 컴포넌트 ===
+export { EmailInputScreen } from './screens/EmailInputScreen';
+export { VerificationCodeScreen } from './screens/VerificationCodeScreen';
 
 // === Auth-Core Re-exports (편의를 위한) ===
 export type { 

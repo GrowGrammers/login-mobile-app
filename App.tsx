@@ -21,8 +21,15 @@ import {
 
 // auth-core 관련 import
 import { AuthManager } from '@growgrammers/auth-core';
-import { initializeMockAuth, useAuthState, AuthActions } from './src';
+import { 
+  initializeMockEmailAuth, 
+  initializeMockGoogleAuth, 
+  useAuthState, 
+  AuthActions 
+} from './src';
 import { LoginButton, LogoutButton } from './src/components/LoginButton';
+import { EmailInputScreen } from './src/screens/EmailInputScreen';
+import { VerificationCodeScreen } from './src/screens/VerificationCodeScreen';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -37,24 +44,33 @@ function App() {
 
 function AuthApp() {
   const safeAreaInsets = useSafeAreaInsets();
-  const [authManager, setAuthManager] = useState<AuthManager | null>(null);
+  const [emailAuthManager, setEmailAuthManager] = useState<AuthManager | null>(null);
+  const [googleAuthManager, setGoogleAuthManager] = useState<AuthManager | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
 
-  // AuthManager 초기화
+  // AuthManager들 초기화
   useEffect(() => {
-    console.log('[App] AuthManager 초기화 시작...');
-    //팩토리 함수 호출하여 AuthManager 초기화
-    initializeMockAuth({
-      provider: 'google',
-      apiBaseUrl: 'https://api.example.com',
-      googleClientId: 'mock-client-id-for-development',
-      useMockBridge: true, // 개발용 Mock Bridge 사용
-      enableDebugLogs: true
-    })
-    .then((manager) => {
-      console.log('[App] AuthManager 초기화 성공!');
-      // AuthManager 인스턴스 받아서 react state에 저장
-      setAuthManager(manager);
+    console.log('[App] AuthManager들 초기화 시작...');
+    
+    Promise.all([
+      // 이메일 AuthManager 초기화
+      initializeMockEmailAuth({
+        apiBaseUrl: 'https://api.example.com',
+        useMockBridge: true,
+        enableDebugLogs: true
+      }),
+      // 구글 AuthManager 초기화
+      initializeMockGoogleAuth({
+        apiBaseUrl: 'https://api.example.com',
+        googleClientId: 'mock-client-id-for-development',
+        useMockBridge: true,
+        enableDebugLogs: true
+      })
+    ])
+    .then(([emailManager, googleManager]) => {
+      console.log('[App] AuthManager들 초기화 성공!');
+      setEmailAuthManager(emailManager);
+      setGoogleAuthManager(googleManager);
     })
     .catch((error) => {
       console.error('[App] AuthManager 초기화 실패:', error);
@@ -63,7 +79,7 @@ function AuthApp() {
   }, []);
 
   // 로딩 상태
-  if (!authManager && !initError) {
+  if ((!emailAuthManager || !googleAuthManager) && !initError) {
     return (
       <View style={[styles.container, styles.center]}>
         <ActivityIndicator size="large" color="#007AFF" />
@@ -85,27 +101,69 @@ function AuthApp() {
   // 정상 상태 - 실제 앱 렌더링
   return (
     <View style={[styles.container, { paddingTop: safeAreaInsets.top }]}>
-      <LoginMobileApp authManager={authManager!} />
+      <LoginMobileApp 
+        emailAuthManager={emailAuthManager!} 
+        googleAuthManager={googleAuthManager!}
+      />
     </View>
   );
 }
 
+// 화면 타입 정의
+type ScreenType = 'login' | 'email-input' | 'verification-code';
+
 // 메인 로그인 앱 컴포넌트
-function LoginMobileApp({ authManager }: { authManager: AuthManager }) {
-  const { authState, clearError } = useAuthState(authManager);
+function LoginMobileApp({ 
+  emailAuthManager, 
+  googleAuthManager 
+}: { 
+  emailAuthManager: AuthManager;
+  googleAuthManager: AuthManager;
+}) {
+  // 현재 사용 중인 AuthManager 상태 관리
+  const [currentAuthManager, setCurrentAuthManager] = useState<AuthManager>(emailAuthManager);
+  const [currentProvider, setCurrentProvider] = useState<'email' | 'google'>('email');
   
-  // AuthActions 인스턴스 생성
-  const authActions = new AuthActions(authManager);
+  const { authState, clearError, refreshSession } = useAuthState(currentAuthManager);
+  const [currentScreen, setCurrentScreen] = useState<ScreenType>('login');
+  const [emailForVerification, setEmailForVerification] = useState<string>('');
+  
+  // AuthActions 인스턴스 생성 (현재 AuthManager 기준)
+  const authActions = new AuthActions(currentAuthManager);
 
   console.log('[App] 현재 인증 상태:', authState);
+  console.log('[App] 현재 화면:', currentScreen);
 
-  // 로그인 핸들러
+  // 구글 AuthManager로 전환
+  const switchToGoogleAuth = () => {
+    if (currentProvider !== 'google') {
+      console.log('[App] 구글 AuthManager로 전환');
+      setCurrentAuthManager(googleAuthManager);
+      setCurrentProvider('google');
+    }
+  };
+
+  // 이메일 AuthManager로 전환
+  const switchToEmailAuth = () => {
+    if (currentProvider !== 'email') {
+      console.log('[App] 이메일 AuthManager로 전환');
+      setCurrentAuthManager(emailAuthManager);
+      setCurrentProvider('email');
+    }
+  };
+
+  // 구글 로그인 핸들러
   const handleGoogleLogin = async () => {
     console.log('[App] 구글 로그인 시작');
-    clearError(); // 이전 에러 정리
+    
+    // 구글 AuthManager로 전환
+    switchToGoogleAuth();
+    clearError();
     
     try {
-      const success = await authActions.startOAuth('google');
+      // 구글 AuthManager의 AuthActions 사용
+      const googleAuthActions = new AuthActions(googleAuthManager);
+      const success = await googleAuthActions.startOAuth('google');
       if (success) {
         console.log('[App] 구글 로그인 시작 성공');
       } else {
@@ -114,6 +172,73 @@ function LoginMobileApp({ authManager }: { authManager: AuthManager }) {
     } catch (error) {
       console.error('[App] 구글 로그인 예외:', error);
     }
+  };
+
+  // 이메일 로그인 시작 핸들러
+  const handleEmailLogin = () => {
+    console.log('[App] 이메일 로그인 시작');
+    
+    // 이메일 AuthManager로 전환
+    switchToEmailAuth();
+    clearError();
+    setCurrentScreen('email-input');
+  };
+
+  // 이메일 인증번호 요청 핸들러
+  const handleRequestVerification = async (email: string): Promise<boolean> => {
+    console.log('[App] 인증번호 요청:', email);
+    
+    // 이메일 AuthManager 사용
+    const emailAuthActions = new AuthActions(emailAuthManager);
+    const success = await emailAuthActions.requestEmailVerification(email);
+    if (success) {
+      setEmailForVerification(email);
+      setCurrentScreen('verification-code');
+    }
+    return success;
+  };
+
+  // 인증번호 확인 및 로그인 핸들러
+  const handleVerifyCode = async (email: string, verificationCode: string): Promise<boolean> => {
+    console.log('[App] 인증번호 확인 및 로그인:', email);
+    
+    // 먼저 이메일 AuthManager로 전환
+    console.log('[App] 이메일 AuthManager로 전환');
+    setCurrentAuthManager(emailAuthManager);
+    setCurrentProvider('email');
+    
+    // 상태 전환을 위해 잠시 대기
+    await new Promise<void>(resolve => setTimeout(() => resolve(), 50));
+    
+    // 이메일 AuthManager 사용
+    const emailAuthActions = new AuthActions(emailAuthManager);
+    const success = await emailAuthActions.loginWithEmail(email, verificationCode);
+    if (success) {
+      // 메인 화면으로 이동
+      setCurrentScreen('login');
+      
+      // 세션 상태 새로고침
+      setTimeout(async () => {
+        console.log('[App] 세션 상태 새로고침 시작');
+        await refreshSession();
+      }, 100);
+    }
+    return success;
+  };
+
+  // 인증번호 재발송 핸들러
+  const handleResendCode = async (email: string): Promise<boolean> => {
+    console.log('[App] 인증번호 재발송:', email);
+    
+    // 이메일 AuthManager 사용
+    const emailAuthActions = new AuthActions(emailAuthManager);
+    return await emailAuthActions.requestEmailVerification(email);
+  };
+
+  // 뒤로가기 핸들러
+  const handleBack = () => {
+    setCurrentScreen('login');
+    clearError();
   };
 
   // 로그아웃 핸들러
@@ -164,12 +289,37 @@ function LoginMobileApp({ authManager }: { authManager: AuthManager }) {
           
           <Text style={styles.debugInfo}>
             🔍 디버그 정보:{'\n'}
+            • 로그인 Provider: {currentProvider.toUpperCase()}{'\n'}
             • 로딩 상태: {authState.isLoading ? 'YES' : 'NO'}{'\n'}
             • OAuth 진행 중: {authState.isOAuthInProgress ? 'YES' : 'NO'}{'\n'}
             • 마지막 이벤트: {authState.lastEvent?.status || 'NONE'}
           </Text>
         </View>
       </View>
+    );
+  }
+
+  // 이메일 입력 화면
+  if (currentScreen === 'email-input') {
+    return (
+      <EmailInputScreen
+        onRequestVerification={handleRequestVerification}
+        onBack={handleBack}
+        isLoading={authState.isLoading}
+      />
+    );
+  }
+
+  // 인증번호 입력 화면
+  if (currentScreen === 'verification-code') {
+    return (
+      <VerificationCodeScreen
+        email={emailForVerification}
+        onVerifyCode={handleVerifyCode}
+        onBack={handleBack}
+        onResendCode={handleResendCode}
+        isLoading={authState.isLoading}
+      />
     );
   }
 
@@ -193,6 +343,12 @@ function LoginMobileApp({ authManager }: { authManager: AuthManager }) {
           isLoading={authState.isLoading || authState.isOAuthInProgress}
         />
         
+        <LoginButton 
+          provider="email"
+          onPress={handleEmailLogin}
+          isLoading={authState.isLoading}
+        />
+        
         {authState.error && (
           <View style={styles.errorCard}>
             <Text style={styles.errorTitle}>⚠️ 오류 발생</Text>
@@ -202,12 +358,13 @@ function LoginMobileApp({ authManager }: { authManager: AuthManager }) {
         
         <Text style={styles.mockInfo}>
           📝 현재 Mock Bridge 모드입니다.{'\n'}
-          실제 구글 로그인이 아닌 시뮬레이션입니다.{'\n'}
-          버튼을 누르면 1.5초 후 가짜 로그인이 완료됩니다.
+          • 구글 로그인: 1.5초 후 가짜 로그인 완료{'\n'}
+          • 이메일 로그인: 인증번호 123456 입력하면 로그인 성공
         </Text>
         
         <Text style={styles.debugInfo}>
           🔍 디버그 정보:{'\n'}
+          • 현재 Provider: {currentProvider.toUpperCase()}{'\n'}
           • 로딩 상태: {authState.isLoading ? 'YES' : 'NO'}{'\n'}
           • OAuth 진행 중: {authState.isOAuthInProgress ? 'YES' : 'NO'}{'\n'}
           • 마지막 이벤트: {authState.lastEvent?.status || 'NONE'}
