@@ -85,3 +85,6 @@ yarn-error.log
 # yalc
 .yalc/
 yalc.lock
+
+# Package files
+*.tgz
