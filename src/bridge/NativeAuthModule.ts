@@ -91,10 +91,67 @@ export class NativeAuthBridge implements ReactNativeBridge {
     });
   }
 
-  private handleNativeEvent = (event: { status: AuthStatus; data?: any }): void => {
-    console.log(`[NativeAuthBridge] 네이티브 이벤트 수신:`, event);
-    this.notifyListeners(event.status, event.data); // React 컴포넌트에게 이벤트 알림 전달
+  private handleNativeEvent = (eventNameOrPayload: any): void => {
+    console.log(`[NativeAuthBridge] 네이티브 이벤트 수신:`, eventNameOrPayload);
+    
+    // 이벤트 payload 정규화
+    const { eventName, data } = this.normalizeEventPayload(eventNameOrPayload);
+    
+    // 이벤트 이름 → AuthStatus 매핑
+    const statusMap: Record<string, AuthStatus> = {
+      'onAuthStarted': 'started',
+      'onAuthCallbackReceived': 'callback_received', 
+      'onAuthSuccess': 'success',
+      'onAuthError': 'error',
+      'onTokenRefreshed': 'token_refreshed',
+      'onSignedOut': 'signed_out',
+    };
+    
+    const status = eventName ? statusMap[eventName] : eventNameOrPayload.status;
+    
+    if (!status) {
+      console.warn(`[NativeAuthBridge] 알 수 없는 이벤트:`, eventNameOrPayload);
+      return;
+    }
+    
+    this.notifyListeners(status, data);
   };
+
+  /**
+   * 네이티브 이벤트 payload 정규화
+   * 플랫폼별로 다른 이벤트 형식을 통일된 형태로 변환
+   */
+  private normalizeEventPayload(eventNameOrPayload: any): { eventName?: string; data?: any } {
+    // Case 1: { eventName: 'onAuthStarted', data: {...} } 형태
+    if (eventNameOrPayload && typeof eventNameOrPayload === 'object' && eventNameOrPayload.eventName) {
+      return {
+        eventName: eventNameOrPayload.eventName,
+        data: eventNameOrPayload.data
+      };
+    }
+    
+    // Case 2: { status: 'started', data: {...} } 형태 (기존 방식)
+    if (eventNameOrPayload && typeof eventNameOrPayload === 'object' && eventNameOrPayload.status) {
+      return {
+        eventName: undefined,
+        data: eventNameOrPayload.data
+      };
+    }
+    
+    // Case 3: 이벤트 이름만 전달된 경우 (문자열)
+    if (typeof eventNameOrPayload === 'string') {
+      return {
+        eventName: eventNameOrPayload,
+        data: undefined
+      };
+    }
+    
+    // Case 4: 기타 형태
+    return {
+      eventName: undefined,
+      data: eventNameOrPayload
+    };
+  }
 
   // === ReactNativeBridge 인터페이스 구현 ===
 
@@ -186,7 +243,6 @@ export class NativeAuthBridge implements ReactNativeBridge {
       const standardizedResponse = {
         success: response.success ?? (response.status >= 200 && response.status < 300),
         status: response.status,
-        ok: response.ok,
         data: response.data,
         headers: response.headers || {},
         ...(response.error && { error: response.error })
