@@ -181,7 +181,18 @@ export class NativeAuthBridge implements ReactNativeBridge {
       );
       
       console.log(`[NativeAuthBridge] API 응답:`, response);
-      return response;
+      
+      // 네이티브 모듈 응답을 표준화 (success 필드 추가)
+      const standardizedResponse = {
+        success: response.success ?? (response.status >= 200 && response.status < 300),
+        status: response.status,
+        ok: response.ok,
+        data: response.data,
+        headers: response.headers || {},
+        ...(response.error && { error: response.error })
+      };
+      
+      return standardizedResponse;
     } catch (error) {
       console.error(`[NativeAuthBridge] API 호출 실패:`, error);
       const errorMessage = error instanceof Error ? error.message : String(error);
