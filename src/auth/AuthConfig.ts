@@ -199,9 +199,14 @@ export class ReactNativeAuthFactory {
           });
           
           return {
+            success: true,
             status: 200,
             ok: true,
-            data: { success: true },
+            data: { 
+              success: true,
+              message: "OK",
+              data: null
+            },
             headers: {}
           };
         }
@@ -210,11 +215,15 @@ export class ReactNativeAuthFactory {
         if (request.url.includes('/api/v1/auth/email/request')) {
           console.log('[CustomMockBridge] 이메일 인증번호 요청 처리');
           return {
+            success: true,
             status: 200,
             ok: true,
             data: { 
-              success: true, 
-              message: '인증번호가 발송되었습니다.' 
+              success: true,
+              message: "OK",
+              data: {
+                message: '인증번호가 발송되었습니다.'
+              }
             },
             headers: {}
           };
@@ -227,21 +236,27 @@ export class ReactNativeAuthFactory {
           // 간단한 테스트를 위해 123456을 올바른 인증번호로 설정
           if (body.verifyCode === '123456') {
             return {
+              success: true,
               status: 200,
               ok: true,
               data: { 
-                success: true, 
-                message: '인증번호가 확인되었습니다.' 
+                success: true,
+                message: "OK",
+                data: {
+                  message: '인증번호가 확인되었습니다.'
+                }
               },
               headers: {}
             };
           } else {
             return {
+              success: false,
               status: 400,
               ok: false,
               data: { 
-                success: false, 
-                message: '인증번호가 올바르지 않습니다.' 
+                success: false,
+                message: '인증번호가 올바르지 않습니다.',
+                error: 'INVALID_VERIFICATION_CODE'
               },
               headers: {}
             };
@@ -275,10 +290,12 @@ export class ReactNativeAuthFactory {
             });
             
             return {
+              success: true,
               status: 200,
               ok: true,
               data: { 
                 success: true,
+                message: "OK",
                 data: {
                   accessToken: 'mock-access-token',
                   refreshToken: 'mock-refresh-token',
@@ -289,11 +306,13 @@ export class ReactNativeAuthFactory {
             };
           } else {
             return {
+              success: false,
               status: 400,
               ok: false,
               data: { 
-                success: false, 
-                message: '로그인에 실패했습니다.' 
+                success: false,
+                message: '로그인에 실패했습니다.',
+                error: 'INVALID_VERIFICATION_CODE'
               },
               headers: {}
             };
@@ -317,9 +336,14 @@ export class ReactNativeAuthFactory {
           });
           
           return {
+            success: true,
             status: 200,
             ok: true,
-            data: { success: true },
+            data: { 
+              success: true,
+              message: "OK",
+              data: null
+            },
             headers: {}
           };
         }
@@ -328,12 +352,15 @@ export class ReactNativeAuthFactory {
         // 다른 요청에 대한 기본 응답
         console.log('[CustomMockBridge] 기본 응답 처리');
         return {
+          success: true,
           status: 200,
           ok: true,
           data: { 
             success: true,
-            message: 'Mock API 호출 성공',
-            data: null
+            message: "OK",
+            data: {
+              message: 'Mock API 호출 성공'
+            }
           },
           headers: {}
         };
