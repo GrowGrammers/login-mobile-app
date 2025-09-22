@@ -10,7 +10,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -34,6 +33,7 @@ export function VerificationCodeScreen({
   const [codeError, setCodeError] = useState('');
   const [resendTimer, setResendTimer] = useState(60);
   const [canResend, setCanResend] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState('');
   const codeInputRef = useRef<TextInput>(null);
 
   // 타이머 설정
@@ -82,7 +82,7 @@ export function VerificationCodeScreen({
       }
     } catch (error) {
       console.error('인증번호 확인 오류:', error);
-      Alert.alert('오류', '인증번호 확인 중 오류가 발생했습니다.');
+      setCodeError('인증번호 확인 중 오류가 발생했습니다.');
     }
   };
 
@@ -95,13 +95,18 @@ export function VerificationCodeScreen({
       if (success) {
         setResendTimer(60);
         setCanResend(false);
-        Alert.alert('완료', '인증번호가 재발송되었습니다.');
+        setResendSuccess('인증번호가 재발송되었습니다.');
+        setCodeError('');
+        // 3초 후 성공 메시지 제거
+        setTimeout(() => setResendSuccess(''), 3000);
       } else {
-        Alert.alert('오류', '인증번호 재발송에 실패했습니다.');
+        setCodeError('인증번호 재발송에 실패했습니다.');
+        setResendSuccess('');
       }
     } catch (error) {
       console.error('인증번호 재발송 오류:', error);
-      Alert.alert('오류', '인증번호 재발송 중 오류가 발생했습니다.');
+      setCodeError('인증번호 재발송 중 오류가 발생했습니다.');
+      setResendSuccess('');
     }
   };
 
@@ -148,6 +153,9 @@ export function VerificationCodeScreen({
           />
           {codeError ? (
             <Text style={styles.errorText}>{codeError}</Text>
+          ) : null}
+          {resendSuccess ? (
+            <Text style={styles.successText}>{resendSuccess}</Text>
           ) : null}
         </View>
 
@@ -272,6 +280,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 8,
     textAlign: 'center',
+  },
+  successText: {
+    color: '#28a745',
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
+    fontWeight: '500',
   },
   verifyButton: {
     backgroundColor: '#6c5ce7',

@@ -10,7 +10,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -54,11 +53,11 @@ export function EmailInputScreen({
     try {
       const success = await onRequestVerification(email.trim());
       if (!success) {
-        Alert.alert('오류', '인증번호 요청에 실패했습니다. 다시 시도해주세요.');
+        setEmailError('인증번호 요청에 실패했습니다. 다시 시도해주세요.');
       }
     } catch (error) {
       console.error('인증번호 요청 오류:', error);
-      Alert.alert('오류', '인증번호 요청 중 오류가 발생했습니다.');
+      setEmailError('인증번호 요청 중 오류가 발생했습니다.');
     }
   };
 
