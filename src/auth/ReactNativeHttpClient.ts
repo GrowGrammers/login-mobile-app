@@ -90,13 +90,16 @@ export class ReactNativeHttpClient implements HttpClient {
       // JSON 파싱 메서드
       json: async () => {
         if (bridgeResponse.data && typeof bridgeResponse.data === 'object') {
-          return bridgeResponse.data;
+          // 백엔드 응답 구조: { success, message, data }
+          // 실제 데이터는 data.data에 있음
+          return bridgeResponse.data.data || bridgeResponse.data;
         }
         
         // 문자열인 경우 JSON 파싱 시도
         if (typeof bridgeResponse.data === 'string') {
           try {
-            return JSON.parse(bridgeResponse.data);
+            const parsed = JSON.parse(bridgeResponse.data);
+            return parsed.data || parsed;
           } catch {
             throw new Error('응답이 유효한 JSON이 아닙니다.');
           }
@@ -107,7 +110,7 @@ export class ReactNativeHttpClient implements HttpClient {
           throw new Error(bridgeResponse.error);
         }
         
-        return bridgeResponse.data || {};
+        return bridgeResponse.data?.data || bridgeResponse.data || {};
       },
       
       // 텍스트 파싱 메서드
@@ -117,14 +120,17 @@ export class ReactNativeHttpClient implements HttpClient {
         }
         
         if (bridgeResponse.data && typeof bridgeResponse.data === 'object') {
-          return JSON.stringify(bridgeResponse.data);
+          // 백엔드 응답 구조: { success, message, data }
+          // 실제 데이터를 JSON으로 변환
+          const actualData = bridgeResponse.data.data || bridgeResponse.data;
+          return JSON.stringify(actualData);
         }
         
         if (!bridgeResponse.success && bridgeResponse.error) {
           return bridgeResponse.error;
         }
         
-        return bridgeResponse.data?.toString() || '';
+        return bridgeResponse.data?.data?.toString() || bridgeResponse.data?.toString() || '';
       }
     };
   }
