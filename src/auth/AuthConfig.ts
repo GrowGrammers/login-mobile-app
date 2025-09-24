@@ -161,12 +161,76 @@ export class ReactNativeAuthFactory {
     let mockAuthListeners: Array<(status: any, data?: any) => void> = [];
     let mockIsLoggedIn = false;
     let mockUserInfo: any = null;
+    let autoRefreshTimer: any = null;
+    let mockTokenExpiresAt = 0; // 토큰 만료 시간 (Unix timestamp)
     
     // 세션 상태 업데이트 헬퍼 함수
     const updateSessionState = (userInfo: any) => {
       mockIsLoggedIn = true;
       mockUserInfo = userInfo;
-      console.log('[CustomMockBridge] 세션 상태 업데이트:', { isLoggedIn: mockIsLoggedIn, userInfo: mockUserInfo });
+      // 모의 토큰 만료 시간 설정 (1시간 후)
+      mockTokenExpiresAt = Date.now() + (60 * 60 * 1000);
+      console.log('[CustomMockBridge] 세션 상태 업데이트:', { 
+        isLoggedIn: mockIsLoggedIn, 
+        userInfo: mockUserInfo,
+        tokenExpiresAt: new Date(mockTokenExpiresAt).toISOString()
+      });
+    };
+
+    // 자동 토큰 갱신 로직
+    const startAutoRefresh = () => {
+      if (autoRefreshTimer) {
+        clearInterval(autoRefreshTimer);
+      }
+      
+      console.log('[CustomMockBridge] 🚀 자동 토큰 갱신 타이머 시작 (30초마다 체크)');
+      
+      // 30초마다 토큰 만료 시간 체크
+      autoRefreshTimer = setInterval(() => {
+        if (!mockIsLoggedIn || mockTokenExpiresAt === 0) {
+          console.log('[CustomMockBridge] 🔍 토큰 체크 건너뜀 - 로그인되지 않음 또는 토큰 없음');
+          return;
+        }
+        
+        const now = Date.now();
+        const timeUntilExpiry = mockTokenExpiresAt - now;
+        const fiveMinutesInMs = 5 * 60 * 1000;
+        const minutesUntilExpiry = Math.round(timeUntilExpiry / 1000 / 60);
+        
+        console.log(`[CustomMockBridge] 🔍 토큰 만료 시간 체크 - ${minutesUntilExpiry}분 남음 (${new Date(mockTokenExpiresAt).toLocaleTimeString()}에 만료)`);
+        
+        // 5분 전에 자동 갱신
+        if (timeUntilExpiry <= fiveMinutesInMs && timeUntilExpiry > 0) {
+          console.log('[CustomMockBridge] ⚡ 토큰 만료 5분 전, 자동 갱신 수행!');
+          
+          // 새로운 토큰 만료 시간 설정 (1시간 후)
+          mockTokenExpiresAt = Date.now() + (60 * 60 * 1000);
+          console.log(`[CustomMockBridge] ✅ 새로운 토큰 만료 시간: ${new Date(mockTokenExpiresAt).toLocaleTimeString()}`);
+          
+          // 토큰 갱신 이벤트 발생
+          mockAuthListeners.forEach(listener => {
+            try {
+              listener('token_refreshed', {
+                timestamp: Date.now(),
+                source: 'auto_refresh',
+                newExpiresAt: mockTokenExpiresAt
+              });
+            } catch (error) {
+              console.error('[CustomMockBridge] 이벤트 리스너 오류:', error);
+            }
+          });
+        } else if (timeUntilExpiry <= 0) {
+          console.warn('[CustomMockBridge] ⚠️ 토큰이 이미 만료됨!');
+        }
+      }, 30000); // 30초마다 체크
+    };
+
+    const stopAutoRefresh = () => {
+      if (autoRefreshTimer) {
+        console.log('[CustomMockBridge] 자동 토큰 갱신 타이머 중지');
+        clearInterval(autoRefreshTimer);
+        autoRefreshTimer = null;
+      }
     };
     
     return {
@@ -182,6 +246,58 @@ export class ReactNativeAuthFactory {
           urlType: typeof request.url
         });
         
+        // 토큰 갱신 요청 처리
+        if (request.url.includes('/auth/members/refresh')) {
+          console.log('[CustomMockBridge] 토큰 갱신 처리');
+          
+          if (!mockIsLoggedIn) {
+            return {
+              success: false,
+              status: 401,
+              ok: false,
+              data: { 
+                success: false,
+                message: "Unauthorized",
+                error: "로그인이 필요합니다."
+              },
+              headers: {}
+            };
+          }
+          
+          // 만료 시간 갱신
+          mockTokenExpiresAt = Date.now() + (60 * 60 * 1000);
+          console.log(`[CustomMockBridge] API 호출로 토큰 갱신 - 새로운 만료 시간: ${new Date(mockTokenExpiresAt).toLocaleTimeString()}`);
+          
+          // 토큰 갱신 성공 이벤트 발생
+          mockAuthListeners.forEach(listener => {
+            try {
+              listener('token_refreshed', {
+                timestamp: Date.now(),
+                source: 'mock_bridge',
+                newExpiresAt: mockTokenExpiresAt
+              });
+            } catch (error) {
+              console.error('[CustomMockBridge] 이벤트 리스너 오류:', error);
+            }
+          });
+          
+          return {
+            success: true,
+            status: 200,
+            ok: true,
+            data: { 
+              success: true,
+              message: "OK",
+              data: {
+                accessToken: 'mock-new-access-token-' + Date.now(),
+                refreshToken: 'mock-new-refresh-token-' + Date.now(),
+                expiresIn: 3600 // 1시간
+              }
+            },
+            headers: {}
+          };
+        }
+
         // 이메일 로그아웃 요청 (우선 처리)
         if (request.url.includes('/api/v1/auth/members/logout')) {
           console.log('[CustomMockBridge] 이메일 로그아웃 처리');
@@ -279,6 +395,9 @@ export class ReactNativeAuthFactory {
             
             // 세션 상태 업데이트
             updateSessionState(emailUserInfo);
+            
+            // 자동 토큰 갱신 시작
+            startAutoRefresh();
             
             // 이메일 로그인 성공 이벤트 발생 (OAuth success와 동일)
             mockAuthListeners.forEach(listener => {
@@ -393,6 +512,9 @@ export class ReactNativeAuthFactory {
           // 세션 상태 업데이트
           updateSessionState(oauthUserInfo);
           
+          // 자동 토큰 갱신 시작
+          startAutoRefresh();
+          
           // OAuth 성공 이벤트 발생
           mockAuthListeners.forEach(listener => {
             try {
@@ -428,8 +550,14 @@ export class ReactNativeAuthFactory {
       },
       signOut: async () => {
         console.log('[CustomMockBridge] 로그아웃');
+        
+        // 자동 토큰 갱신 중지
+        stopAutoRefresh();
+        
+        // 상태 초기화
         mockIsLoggedIn = false;
         mockUserInfo = null;
+        mockTokenExpiresAt = 0;
         
         // 로그아웃 이벤트 발생
         mockAuthListeners.forEach(listener => {
@@ -442,11 +570,58 @@ export class ReactNativeAuthFactory {
         
         return true;
       },
+      refreshToken: async () => {
+        console.log('[CustomMockBridge] 수동 토큰 갱신 요청');
+        
+        if (!mockIsLoggedIn) {
+          console.warn('[CustomMockBridge] 로그인되지 않은 상태에서 토큰 갱신 시도');
+          return false;
+        }
+        
+        // 토큰 갱신 성공 시뮬레이션
+        console.log('[CustomMockBridge] 수동 토큰 갱신 성공');
+        
+        // 새로운 토큰 만료 시간 설정 (1시간 후)
+        mockTokenExpiresAt = Date.now() + (60 * 60 * 1000);
+        
+        // 토큰 갱신 성공 이벤트 발생
+        mockAuthListeners.forEach(listener => {
+          try {
+            listener('token_refreshed', {
+              timestamp: Date.now(),
+              source: 'manual_refresh',
+              newExpiresAt: mockTokenExpiresAt
+            });
+          } catch (error) {
+            console.error('[CustomMockBridge] 이벤트 리스너 오류:', error);
+          }
+        });
+        
+        return true;
+      },
+      startAutoTokenRefresh: async () => {
+        console.log('[CustomMockBridge] 자동 토큰 갱신 시작 요청');
+        
+        if (!mockIsLoggedIn) {
+          console.warn('[CustomMockBridge] 로그인되지 않은 상태에서 자동 갱신 시작 불가');
+          return false;
+        }
+        
+        startAutoRefresh();
+        return true;
+      },
+      stopAutoTokenRefresh: async () => {
+        console.log('[CustomMockBridge] 자동 토큰 갱신 중지 요청');
+        stopAutoRefresh();
+        return true;
+      },
       cleanup: () => {
         console.log('[CustomMockBridge] 정리');
+        stopAutoRefresh();
         mockAuthListeners = [];
         mockIsLoggedIn = false;
         mockUserInfo = null;
+        mockTokenExpiresAt = 0;
       }
     };
   }
@@ -478,7 +653,17 @@ export class ReactNativeAuthFactory {
           verifyEmail: '/api/v1/auth/email/verify',
           login: '/api/v1/auth/members/email-login',
           logout: '/api/v1/auth/members/logout',
-          refresh: '/api/v1/auth/members/refresh',
+          refresh: '/auth/members/refresh',
+          kakaoLogin: '/api/v1/auth/kakao/login',
+          kakaoLogout: '/api/v1/auth/kakao/logout',
+          kakaoRefresh: '/api/v1/auth/kakao/refresh',
+          kakaoValidate: '/api/v1/auth/kakao/validate',
+          kakaoUserinfo: '/api/v1/auth/kakao/userinfo',
+          naverLogin: '/api/v1/auth/naver/login',
+          naverLogout: '/api/v1/auth/naver/logout',
+          naverRefresh: '/api/v1/auth/naver/refresh',
+          naverValidate: '/api/v1/auth/naver/validate',
+          naverUserinfo: '/api/v1/auth/naver/userinfo',
           googleLogin: '/api/v1/auth/google/login',
           googleLogout: '/api/v1/auth/google/logout',
           googleRefresh: '/api/v1/auth/google/refresh',

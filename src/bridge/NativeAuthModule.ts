@@ -32,6 +32,11 @@ interface NativeAuthModuleInterface {
     timeout?: number
   ): Promise<AuthenticatedResponse>;
   
+  // === Token Refresh ===
+  refreshToken(): Promise<boolean>;
+  startAutoTokenRefresh(): Promise<boolean>;
+  stopAutoTokenRefresh(): Promise<boolean>;
+  
   // === Optional: Direct Token Access (Less Secure) ===
   getAuthHeader?(): Promise<string | null>;
   
@@ -258,6 +263,107 @@ export class NativeAuthBridge implements ReactNativeBridge {
         headers: {},
         error: errorMessage
       };
+    }
+  }
+
+  /**
+   * 수동 토큰 갱신 요청 (M2(A): Native Refresh Call)
+   * 네이티브가 refresh token을 사용하여 새로운 access token 발급
+   */
+  async refreshToken(): Promise<boolean> {
+    console.log(`[NativeAuthBridge] 수동 토큰 갱신 요청`);
+    
+    try {
+      if (!NativeAuthModule) {
+        throw new Error('네이티브 모듈이 로드되지 않았습니다.');
+      }
+
+      if (!NativeAuthModule.refreshToken) {
+        console.warn(`[NativeAuthBridge] refreshToken 메서드를 사용할 수 없습니다.`);
+        return false;
+      }
+
+      const success = await NativeAuthModule.refreshToken();
+      
+      if (success) {
+        console.log(`[NativeAuthBridge] 수동 토큰 갱신 성공`);
+        // 토큰 갱신 성공 이벤트 발생
+        this.notifyListeners('token_refreshed', { 
+          timestamp: Date.now(),
+          source: 'manual_refresh'
+        });
+      } else {
+        console.warn(`[NativeAuthBridge] 수동 토큰 갱신 실패`);
+      }
+      
+      return success;
+    } catch (error) {
+      console.error(`[NativeAuthBridge] 수동 토큰 갱신 오류:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * 자동 토큰 갱신 시작 (M2(A): Native Auto Refresh)
+   * 네이티브가 토큰 만료 시간 모니터링하고 5분 전에 자동 갱신
+   */
+  async startAutoTokenRefresh(): Promise<boolean> {
+    console.log(`[NativeAuthBridge] 자동 토큰 갱신 시작`);
+    
+    try {
+      if (!NativeAuthModule) {
+        throw new Error('네이티브 모듈이 로드되지 않았습니다.');
+      }
+
+      if (!NativeAuthModule.startAutoTokenRefresh) {
+        console.warn(`[NativeAuthBridge] startAutoTokenRefresh 메서드를 사용할 수 없습니다.`);
+        return false;
+      }
+
+      const success = await NativeAuthModule.startAutoTokenRefresh();
+      
+      if (success) {
+        console.log(`[NativeAuthBridge] 자동 토큰 갱신 시작됨`);
+      } else {
+        console.warn(`[NativeAuthBridge] 자동 토큰 갱신 시작 실패`);
+      }
+      
+      return success;
+    } catch (error) {
+      console.error(`[NativeAuthBridge] 자동 토큰 갱신 시작 오류:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * 자동 토큰 갱신 중지 (M2(A): Native Auto Refresh)
+   * 네이티브의 자동 토큰 갱신 타이머 중지
+   */
+  async stopAutoTokenRefresh(): Promise<boolean> {
+    console.log(`[NativeAuthBridge] 자동 토큰 갱신 중지`);
+    
+    try {
+      if (!NativeAuthModule) {
+        throw new Error('네이티브 모듈이 로드되지 않았습니다.');
+      }
+
+      if (!NativeAuthModule.stopAutoTokenRefresh) {
+        console.warn(`[NativeAuthBridge] stopAutoTokenRefresh 메서드를 사용할 수 없습니다.`);
+        return false;
+      }
+
+      const success = await NativeAuthModule.stopAutoTokenRefresh();
+      
+      if (success) {
+        console.log(`[NativeAuthBridge] 자동 토큰 갱신 중지됨`);
+      } else {
+        console.warn(`[NativeAuthBridge] 자동 토큰 갱신 중지 실패`);
+      }
+      
+      return success;
+    } catch (error) {
+      console.error(`[NativeAuthBridge] 자동 토큰 갱신 중지 오류:`, error);
+      return false;
     }
   }
 
