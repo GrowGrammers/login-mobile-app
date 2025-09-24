@@ -7,6 +7,12 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { AuthStatus, ReactNativeBridge, SessionInfo } from '@growgrammers/auth-core';
 import type { AuthManager } from '@growgrammers/auth-core';
 
+// 확장된 Bridge 인터페이스 (타입 안전성을 위해)
+interface ExtendedReactNativeBridge extends ReactNativeBridge {
+  startAutoTokenRefresh?: () => Promise<boolean>;
+  stopAutoTokenRefresh?: () => Promise<boolean>;
+}
+
 /**
  * 인증 상태 타입 정의
  */
@@ -16,7 +22,7 @@ export interface AuthState {
   isLoading: boolean;
   
   // === 사용자 정보 ===
-  userInfo: SessionInfo['userInfo'] | null;
+  userInfo: any | null;
   
   // === OAuth 플로우 상태 ===
   isOAuthInProgress: boolean;
@@ -92,6 +98,19 @@ export function useAuthState(authManager: AuthManager | null): {
           if (data?.user) {
             newState.userInfo = data.user;
           }
+          
+          // 로그인 성공 시 자동 토큰 갱신 시작
+          setTimeout(async () => {
+            try {
+              const bridge = authManager?.getNativeBridge() as ExtendedReactNativeBridge;
+              if (bridge && bridge.startAutoTokenRefresh) {
+                console.log('[AuthEventHandler] 자동 토큰 갱신 시작');
+                await bridge.startAutoTokenRefresh();
+              }
+            } catch (error) {
+              console.error('[AuthEventHandler] 자동 토큰 갱신 시작 실패:', error);
+            }
+          }, 100);
           break;
           
         case 'error':
@@ -102,6 +121,11 @@ export function useAuthState(authManager: AuthManager | null): {
           
         case 'token_refreshed':
           // 토큰 갱신은 백그라운드에서 처리되므로 UI 상태는 유지
+          console.log('🔄 [AuthEventHandler] 토큰 갱신 완료:', {
+            source: data?.source,
+            timestamp: new Date(data?.timestamp).toLocaleTimeString(),
+            newExpiresAt: data?.newExpiresAt ? new Date(data.newExpiresAt).toLocaleTimeString() : 'unknown'
+          });
           break;
           
         case 'signed_out':
@@ -111,12 +135,25 @@ export function useAuthState(authManager: AuthManager | null): {
           newState.isLoading = false;
           newState.error = null;
           newState.oauthProvider = null;
+          
+          // 로그아웃 시 자동 토큰 갱신 중지
+          setTimeout(async () => {
+            try {
+              const bridge = authManager?.getNativeBridge() as ExtendedReactNativeBridge;
+              if (bridge && bridge.stopAutoTokenRefresh) {
+                console.log('[AuthEventHandler] 자동 토큰 갱신 중지');
+                await bridge.stopAutoTokenRefresh();
+              }
+            } catch (error) {
+              console.error('[AuthEventHandler] 자동 토큰 갱신 중지 실패:', error);
+            }
+          }, 100);
           break;
       }
       
       return newState;
     });
-  }, []);
+  }, [authManager]);
 
   // === 세션 상태 새로고침 ===
   
@@ -131,7 +168,7 @@ export function useAuthState(authManager: AuthManager | null): {
       setAuthState(prev => ({
         ...prev,
         isLoggedIn: session?.isLoggedIn || false,
-        userInfo: session?.userInfo || null,
+        userInfo: (session as any)?.userInfo || null,
         isLoading: false,
         error: null
       }));
