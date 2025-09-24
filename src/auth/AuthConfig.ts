@@ -264,12 +264,17 @@ export class ReactNativeAuthFactory {
             };
           }
           
+          // 만료 시간 갱신
+          mockTokenExpiresAt = Date.now() + (60 * 60 * 1000);
+          console.log(`[CustomMockBridge] API 호출로 토큰 갱신 - 새로운 만료 시간: ${new Date(mockTokenExpiresAt).toLocaleTimeString()}`);
+          
           // 토큰 갱신 성공 이벤트 발생
           mockAuthListeners.forEach(listener => {
             try {
               listener('token_refreshed', {
                 timestamp: Date.now(),
-                source: 'mock_bridge'
+                source: 'mock_bridge',
+                newExpiresAt: mockTokenExpiresAt
               });
             } catch (error) {
               console.error('[CustomMockBridge] 이벤트 리스너 오류:', error);
