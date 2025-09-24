@@ -13,6 +13,8 @@ export {
   initializeMockAuth,
   initializeMockEmailAuth,
   initializeMockGoogleAuth,
+  initializeMockKakaoAuth,
+  initializeMockNaverAuth,
   defaultAuthConfig
 } from './auth/AuthConfig';
 export type { ReactNativeAuthConfig } from './auth/AuthConfig';

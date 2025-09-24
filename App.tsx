@@ -24,6 +24,8 @@ import { AuthManager } from '@growgrammers/auth-core';
 import { 
   initializeMockEmailAuth, 
   initializeMockGoogleAuth, 
+  initializeMockKakaoAuth, 
+  initializeMockNaverAuth, 
   useAuthState, 
   AuthActions 
 } from './src';
@@ -46,6 +48,8 @@ function AuthApp() {
   const safeAreaInsets = useSafeAreaInsets();
   const [emailAuthManager, setEmailAuthManager] = useState<AuthManager | null>(null);
   const [googleAuthManager, setGoogleAuthManager] = useState<AuthManager | null>(null);
+  const [kakaoAuthManager, setKakaoAuthManager] = useState<AuthManager | null>(null);
+  const [naverAuthManager, setNaverAuthManager] = useState<AuthManager | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
 
   // AuthManager들 초기화
@@ -65,12 +69,28 @@ function AuthApp() {
         googleClientId: 'mock-client-id-for-development',
         useMockBridge: true,
         enableDebugLogs: true
+      }),
+      // 카카오 AuthManager 초기화
+      initializeMockKakaoAuth({
+        apiBaseUrl: 'https://api.example.com',
+        kakaoClientId: 'mock-client-id-for-development',
+        useMockBridge: true,
+        enableDebugLogs: true
+      }),
+      // 네이버 AuthManager 초기화
+      initializeMockNaverAuth({
+        apiBaseUrl: 'https://api.example.com',
+        naverClientId: 'mock-client-id-for-development',
+        useMockBridge: true,
+        enableDebugLogs: true
       })
     ])
-    .then(([emailManager, googleManager]) => {
+    .then(([emailManager, googleManager, kakaoManager, naverManager]) => {
       console.log('[App] AuthManager들 초기화 성공!');
       setEmailAuthManager(emailManager);
       setGoogleAuthManager(googleManager);
+      setKakaoAuthManager(kakaoManager);
+      setNaverAuthManager(naverManager);
     })
     .catch((error) => {
       console.error('[App] AuthManager 초기화 실패:', error);
@@ -79,7 +99,7 @@ function AuthApp() {
   }, []);
 
   // 로딩 상태
-  if ((!emailAuthManager || !googleAuthManager) && !initError) {
+  if ((!emailAuthManager || !googleAuthManager || !kakaoAuthManager || !naverAuthManager) && !initError) {
     return (
       <View style={[styles.container, styles.center]}>
         <ActivityIndicator size="large" color="#007AFF" />
@@ -104,6 +124,8 @@ function AuthApp() {
       <LoginMobileApp 
         emailAuthManager={emailAuthManager!} 
         googleAuthManager={googleAuthManager!}
+        kakaoAuthManager={kakaoAuthManager!}
+        naverAuthManager={naverAuthManager!}
       />
     </View>
   );
@@ -115,14 +137,18 @@ type ScreenType = 'login' | 'email-input' | 'verification-code';
 // 메인 로그인 앱 컴포넌트
 function LoginMobileApp({ 
   emailAuthManager, 
-  googleAuthManager 
+  googleAuthManager,
+  kakaoAuthManager,
+  naverAuthManager 
 }: { 
   emailAuthManager: AuthManager;
   googleAuthManager: AuthManager;
+  kakaoAuthManager: AuthManager;
+  naverAuthManager: AuthManager;
 }) {
   // 현재 사용 중인 AuthManager 상태 관리
   const [currentAuthManager, setCurrentAuthManager] = useState<AuthManager>(emailAuthManager);
-  const [currentProvider, setCurrentProvider] = useState<'email' | 'google'>('email');
+  const [currentProvider, setCurrentProvider] = useState<'email' | 'google' | 'kakao' | 'naver'>('email');
   
   const { authState, clearError, refreshSession } = useAuthState(currentAuthManager);
   const [currentScreen, setCurrentScreen] = useState<ScreenType>('login');
@@ -152,6 +178,24 @@ function LoginMobileApp({
     }
   };
 
+  // 카카오 AuthManager로 전환
+  const switchToKakaoAuth = () => {
+    if (currentProvider !== 'kakao') {
+      console.log('[App] 카카오 AuthManager로 전환');
+      setCurrentAuthManager(kakaoAuthManager);
+      setCurrentProvider('kakao');
+    }
+  };
+
+  // 네이버 AuthManager로 전환
+  const switchToNaverAuth = () => {
+    if (currentProvider !== 'naver') {
+      console.log('[App] 네이버 AuthManager로 전환');
+      setCurrentAuthManager(naverAuthManager);
+      setCurrentProvider('naver');
+    }
+  };
+
   // 구글 로그인 핸들러
   const handleGoogleLogin = async () => {
     console.log('[App] 구글 로그인 시작');
@@ -171,6 +215,50 @@ function LoginMobileApp({
       }
     } catch (error) {
       console.error('[App] 구글 로그인 예외:', error);
+    }
+  };
+
+  // 카카오 로그인 핸들러
+  const handleKakaoLogin = async () => {
+    console.log('[App] 카카오 로그인 시작');
+    
+    // 카카오 AuthManager로 전환
+    switchToKakaoAuth();
+    clearError();
+    
+    try {
+      // 카카오 AuthManager의 AuthActions 사용
+      const kakaoAuthActions = new AuthActions(kakaoAuthManager);
+      const success = await kakaoAuthActions.startOAuth('kakao');
+      if (success) {
+        console.log('[App] 카카오 로그인 시작 성공');
+      } else {
+        console.log('[App] 카카오 로그인 시작 실패');
+      }
+    } catch (error) {
+      console.error('[App] 카카오 로그인 예외:', error);
+    }
+  };
+
+  // 네이버 로그인 핸들러
+  const handleNaverLogin = async () => {
+    console.log('[App] 네이버 로그인 시작');
+    
+    // 네이버 AuthManager로 전환
+    switchToNaverAuth();
+    clearError();
+    
+    try {
+      // 네이버 AuthManager의 AuthActions 사용
+      const naverAuthActions = new AuthActions(naverAuthManager);
+      const success = await naverAuthActions.startOAuth('naver');
+      if (success) {
+        console.log('[App] 네이버 로그인 시작 성공');
+      } else {
+        console.log('[App] 네이버 로그인 시작 실패');
+      }
+    } catch (error) {
+      console.error('[App] 네이버 로그인 예외:', error);
     }
   };
 
@@ -344,6 +432,18 @@ function LoginMobileApp({
         />
         
         <LoginButton 
+          provider="kakao"
+          onPress={handleKakaoLogin}
+          isLoading={authState.isLoading || authState.isOAuthInProgress}
+        />
+        
+        <LoginButton 
+          provider="naver"
+          onPress={handleNaverLogin}
+          isLoading={authState.isLoading || authState.isOAuthInProgress}
+        />
+        
+        <LoginButton 
           provider="email"
           onPress={handleEmailLogin}
           isLoading={authState.isLoading}
@@ -359,6 +459,8 @@ function LoginMobileApp({
         <Text style={styles.mockInfo}>
           📝 현재 Mock Bridge 모드입니다.{'\n'}
           • 구글 로그인: 1.5초 후 가짜 로그인 완료{'\n'}
+          • 카카오 로그인: 1.5초 후 가짜 로그인 완료{'\n'}
+          • 네이버 로그인: 1.5초 후 가짜 로그인 완료{'\n'}
           • 이메일 로그인: 인증번호 123456 입력하면 로그인 성공
         </Text>
         

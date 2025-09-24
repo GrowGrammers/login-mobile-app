@@ -16,6 +16,7 @@ export interface ReactNativeAuthConfig {
   provider: OAuthProvider | 'email';
   googleClientId?: string;
   kakaoClientId?: string;
+  naverClientId?: string;
   
   // === API 서버 설정 ===
   apiBaseUrl: string;
@@ -36,6 +37,8 @@ export class ReactNativeAuthFactory {
   private static bridge: NativeAuthBridge | null = null;
   private static emailAuthManager: AuthManager | null = null;
   private static googleAuthManager: AuthManager | null = null;
+  private static kakaoAuthManager: AuthManager | null = null;
+  private static naverAuthManager: AuthManager | null = null;
 
   /**
    * 이메일 AuthManager 생성 및 초기화
@@ -119,6 +122,92 @@ export class ReactNativeAuthFactory {
       
     } catch (error) {
       console.error('[ReactNativeAuthFactory] Google AuthManager 생성 실패:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 카카오 OAuth 전용 AuthManager 생성
+   */
+  static async createKakaoAuthManager(config: ReactNativeAuthConfig): Promise<AuthManager> {
+    console.log('[ReactNativeAuthFactory] Kakao AuthManager 생성 시작');
+    
+    if (this.kakaoAuthManager) {
+      console.log('[ReactNativeAuthFactory] 기존 Kakao AuthManager 반환');
+      return this.kakaoAuthManager;
+    }
+
+    try {
+      // 1. Bridge 초기화
+      const bridge = await this.initializeBridge(config);
+      
+      // 2. HttpClient 생성
+      const httpClient = new ReactNativeHttpClient(bridge);
+      
+      // 3. 카카오 AuthManager 설정 구성
+      const authConfig = this.buildAuthManagerConfig({
+        ...config,
+        provider: 'kakao'
+      }, httpClient, bridge);
+      
+      // 4. AuthManager 생성
+      const authManager = new AuthManager(authConfig);
+      
+      // 5. 헬스 체크
+      await this.performHealthCheck(authManager, bridge);
+      
+      // 6. 인스턴스 저장
+      this.bridge = bridge;
+      this.kakaoAuthManager = authManager;
+      
+      console.log('[ReactNativeAuthFactory] Kakao AuthManager 생성 완료');
+      return authManager;
+      
+    } catch (error) {
+      console.error('[ReactNativeAuthFactory] Kakao AuthManager 생성 실패:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 네이버 OAuth 전용 AuthManager 생성
+   */
+  static async createNaverAuthManager(config: ReactNativeAuthConfig): Promise<AuthManager> {
+    console.log('[ReactNativeAuthFactory] Naver AuthManager 생성 시작');
+    
+    if (this.naverAuthManager) {
+      console.log('[ReactNativeAuthFactory] 기존 Naver AuthManager 반환');
+      return this.naverAuthManager;
+    }
+
+    try {
+      // 1. Bridge 초기화
+      const bridge = await this.initializeBridge(config);
+      
+      // 2. HttpClient 생성
+      const httpClient = new ReactNativeHttpClient(bridge);
+      
+      // 3. 네이버 AuthManager 설정 구성
+      const authConfig = this.buildAuthManagerConfig({
+        ...config,
+        provider: 'naver'
+      }, httpClient, bridge);
+      
+      // 4. AuthManager 생성
+      const authManager = new AuthManager(authConfig);
+      
+      // 5. 헬스 체크
+      await this.performHealthCheck(authManager, bridge);
+      
+      // 6. 인스턴스 저장
+      this.bridge = bridge;
+      this.naverAuthManager = authManager;
+      
+      console.log('[ReactNativeAuthFactory] Naver AuthManager 생성 완료');
+      return authManager;
+      
+    } catch (error) {
+      console.error('[ReactNativeAuthFactory] Naver AuthManager 생성 실패:', error);
       throw error;
     }
   }
@@ -500,12 +589,31 @@ export class ReactNativeAuthFactory {
         setTimeout(() => {
           console.log('[CustomMockBridge] OAuth 성공 시뮬레이션');
           
-          // 가짜 사용자 정보 생성 (auth-core SessionInfo 형식에 맞춤)
+          // Provider별로 다른 가짜 사용자 정보 생성
+          const providerUserData = {
+            google: {
+              sub: 'google-user-123',
+              id: 'google-user-123',
+              email: 'google.user@gmail.com',
+              nickname: '구글 사용자'
+            },
+            kakao: {
+              sub: 'kakao-user-456',
+              id: 'kakao-user-456',
+              email: 'kakao.user@kakao.com',
+              nickname: '카카오 사용자'
+            },
+            naver: {
+              sub: 'naver-user-789',
+              id: 'naver-user-789',
+              email: 'naver.user@naver.com',
+              nickname: '네이버 사용자'
+            }
+          };
+
+          const userData = providerUserData[provider as keyof typeof providerUserData] || providerUserData.google;
           const oauthUserInfo = {
-            sub: 'mock-user-123',  // auth-core 표준 필드
-            id: 'mock-user-123',
-            email: 'test@example.com',
-            nickname: '홍길동',
+            ...userData,
             provider: provider
           };
           
@@ -518,9 +626,9 @@ export class ReactNativeAuthFactory {
           // OAuth 성공 이벤트 발생
           mockAuthListeners.forEach(listener => {
             try {
-              listener('success', { user: mockUserInfo, provider });
+              listener('success', { user: oauthUserInfo, provider });
             } catch (error) {
-              console.error('[CustomMockBridge] 이벤트 리스너 오류:', error);
+              console.error('[CustomMockBridge] 이벤트 리스너 오료:', error);
             }
           });
         }, 1500);
@@ -636,7 +744,10 @@ export class ReactNativeAuthFactory {
   ): AuthManagerConfig {
     const baseConfig: AuthManagerConfig = {
       // === 기본 설정 ===
-      providerType: config.provider === 'kakao' ? 'google' : config.provider, // kakao는 google로 처리
+      providerType: config.provider === 'email' ? 'email' : 
+                   config.provider === 'google' ? 'google' :
+                   config.provider === 'kakao' ? 'kakao' : 
+                   config.provider === 'naver' ? 'naver' : config.provider,
       platform: 'react-native',
       
       // === 의존성 주입 ===
@@ -687,6 +798,12 @@ export class ReactNativeAuthFactory {
     if (config.provider === 'kakao' && config.kakaoClientId) {
       baseConfig.providerConfig = {
         kakaoClientId: config.kakaoClientId
+      };
+    }
+
+    if (config.provider === 'naver' && config.naverClientId) {
+      baseConfig.providerConfig = {
+        naverClientId: config.naverClientId
       };
     }
 
@@ -808,6 +925,36 @@ export async function initializeMockGoogleAuth(config: Partial<ReactNativeAuthCo
     ...config
   };
   return ReactNativeAuthFactory.createGoogleAuthManager(mockConfig);
+}
+
+/**
+ * 개발용 Mock AuthManager 초기화 (카카오용)
+ */
+export async function initializeMockKakaoAuth(config: Partial<ReactNativeAuthConfig> = {}): Promise<AuthManager> {
+  const mockConfig: ReactNativeAuthConfig = {
+    provider: 'kakao',
+    apiBaseUrl: 'https://api.example.com',
+    kakaoClientId: 'mock-client-id-for-development',
+    useMockBridge: true,
+    enableDebugLogs: true,
+    ...config
+  };
+  return ReactNativeAuthFactory.createKakaoAuthManager(mockConfig);
+}
+
+/**
+ * 개발용 Mock AuthManager 초기화 (네이버용)
+ */
+export async function initializeMockNaverAuth(config: Partial<ReactNativeAuthConfig> = {}): Promise<AuthManager> {
+  const mockConfig: ReactNativeAuthConfig = {
+    provider: 'naver',
+    apiBaseUrl: 'https://api.example.com',
+    naverClientId: 'mock-client-id-for-development',
+    useMockBridge: true,
+    enableDebugLogs: true,
+    ...config
+  };
+  return ReactNativeAuthFactory.createNaverAuthManager(mockConfig);
 }
 
 /**

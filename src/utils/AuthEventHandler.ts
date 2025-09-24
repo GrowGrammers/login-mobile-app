@@ -230,7 +230,7 @@ export function useAuthState(authManager: AuthManager | null): {
 export class AuthActions {
   private authManager: AuthManager;
   private onStateChange?: (state: Partial<AuthState>) => void;
-  private currentProvider: 'email' | 'google' | 'fake' = 'email';
+  private currentProvider: 'email' | 'google' | 'kakao' | 'naver' | 'fake' = 'email';
 
   constructor(authManager: AuthManager, onStateChange?: (state: Partial<AuthState>) => void) {
     this.authManager = authManager;
@@ -240,12 +240,14 @@ export class AuthActions {
   /**
    * OAuth 로그인 시작
    */
-  async startOAuth(provider: 'google' | 'kakao'): Promise<boolean> {
+  async startOAuth(provider: 'google' | 'kakao' | 'naver'): Promise<boolean> {
     try {
       console.log(`[AuthActions] OAuth 로그인 시작: ${provider}`);
       
-      // provider 저장 (google만 지원)
-      this.currentProvider = provider === 'google' ? 'google' : 'email';
+      // provider 저장
+      this.currentProvider = provider === 'google' ? 'google' : 
+                           provider === 'kakao' ? 'kakao' :
+                           provider === 'naver' ? 'naver' : 'email';
       
       this.notifyStateChange({ 
         isLoading: true, 

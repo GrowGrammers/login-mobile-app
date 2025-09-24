@@ -16,7 +16,7 @@ interface LoginButtonProps {
   onPress: () => void;
   isLoading?: boolean;
   disabled?: boolean;
-  provider: 'google' | 'kakao' | 'email';
+  provider: 'google' | 'kakao' | 'naver' | 'email';
 }
 
 export function LoginButton({ 
@@ -31,6 +31,8 @@ export function LoginButton({
         return styles.googleButton;
       case 'kakao':
         return styles.kakaoButton;
+      case 'naver':
+        return styles.naverButton;
       case 'email':
         return styles.emailButton;
       default:
@@ -44,6 +46,8 @@ export function LoginButton({
         return styles.googleText;
       case 'kakao':
         return styles.kakaoText;
+      case 'naver':
+        return styles.naverText;
       case 'email':
         return styles.emailText;
       default:
@@ -57,6 +61,8 @@ export function LoginButton({
         return '🔍';
       case 'kakao':
         return '💬';
+      case 'naver':
+        return '🟢';
       case 'email':
         return '📧';
       default:
@@ -70,6 +76,8 @@ export function LoginButton({
         return 'Google';
       case 'kakao':
         return 'Kakao';
+      case 'naver':
+        return 'Naver';
       case 'email':
         return '이메일';
       default:
@@ -185,6 +193,9 @@ const styles = StyleSheet.create({
   kakaoButton: {
     backgroundColor: '#fee500',
   },
+  naverButton: {
+    backgroundColor: '#03c75a',
+  },
   emailButton: {
     backgroundColor: '#6c5ce7',
   },
@@ -215,6 +226,9 @@ const styles = StyleSheet.create({
   },
   kakaoText: {
     color: '#000',
+  },
+  naverText: {
+    color: '#fff',
   },
   emailText: {
     color: '#fff',
