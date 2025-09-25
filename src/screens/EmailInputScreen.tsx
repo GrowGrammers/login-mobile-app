@@ -1,134 +1,75 @@
 /**
- * 이메일 입력 및 인증번호 요청 화면
+ * EmailInputScreen - 이메일 입력 화면
+ * 이메일 주소를 입력하고 인증번호를 요청하는 화면
  */
 
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
+import React from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { AuthState } from '../utils/AuthEventHandler';
 
 interface EmailInputScreenProps {
-  onRequestVerification: (email: string) => Promise<boolean>;
+  authState: AuthState;
+  emailForVerification: string;
   onBack: () => void;
-  isLoading?: boolean;
+  onEmailChange: (email: string) => void;
+  onRequestVerification: () => void;
 }
 
 export function EmailInputScreen({
-  onRequestVerification,
+  authState,
+  emailForVerification,
   onBack,
-  isLoading = false,
+  onEmailChange,
+  onRequestVerification
 }: EmailInputScreenProps) {
-  const [email, setEmail] = useState('');
-  const [emailError, setEmailError] = useState('');
-
-  // 이메일 유효성 검사
-  const validateEmail = (emailAddress: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(emailAddress);
-  };
-
-  // 인증번호 요청 처리
-  const handleRequestVerification = async () => {
-    // 이메일 입력 확인
-    if (!email.trim()) {
-      setEmailError('이메일을 입력해주세요.');
-      return;
-    }
-
-    // 이메일 형식 확인
-    if (!validateEmail(email.trim())) {
-      setEmailError('올바른 이메일 형식을 입력해주세요.');
-      return;
-    }
-
-    setEmailError('');
-
-    try {
-      const success = await onRequestVerification(email.trim());
-      if (!success) {
-        setEmailError('인증번호 요청에 실패했습니다. 다시 시도해주세요.');
-      }
-    } catch (error) {
-      console.error('인증번호 요청 오류:', error);
-      setEmailError('인증번호 요청 중 오류가 발생했습니다.');
-    }
-  };
-
   return (
-    <KeyboardAvoidingView 
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backButtonText}>← 뒤로</Text>
+    <View style={styles.container}>
+      {/* 헤더 - 뒤로가기 버튼만 */}
+      <View style={styles.oauthHeader}>
+        <TouchableOpacity
+          style={styles.headerBackButton}
+          onPress={onBack}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.headerBackButtonText}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>이메일 로그인</Text>
+        <View style={styles.headerSpacer} />
       </View>
-
-      <View style={styles.content}>
-        <Text style={styles.subtitle}>
-          이메일을 입력하시면 인증번호를 보내드립니다.
-        </Text>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>이메일 주소</Text>
-          <TextInput
-            style={[
-              styles.emailInput,
-              emailError ? styles.inputError : null,
-            ]}
-            value={email}
-            onChangeText={(text) => {
-              setEmail(text);
-              if (emailError) setEmailError('');
-            }}
-            placeholder="example@email.com"
-            placeholderTextColor="#999"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            editable={!isLoading}
-          />
-          {emailError ? (
-            <Text style={styles.errorText}>{emailError}</Text>
-          ) : null}
-        </View>
-
+      
+      <View style={styles.continueHeader}>
+        <Text style={styles.continueTitle}>이메일로 계속하기</Text>
+        <Text style={styles.continueSubtitle}>이메일로 로그인하거나 가입하세요</Text>
+      </View>
+      
+      <View style={styles.continueContent}>
+        <TextInput
+          style={styles.emailInput}
+          placeholder="이메일 주소"
+          placeholderTextColor="#999"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+          value={emailForVerification}
+          onChangeText={onEmailChange}
+          editable={!authState.isLoading}
+        />
+        
         <TouchableOpacity
           style={[
-            styles.requestButton,
-            isLoading && styles.disabledButton,
+            styles.oauthButton,
+            styles.emailOAuthButton,
+            authState.isLoading && styles.disabledButton
           ]}
-          onPress={handleRequestVerification}
-          disabled={isLoading}
+          onPress={onRequestVerification}
+          disabled={authState.isLoading}
           activeOpacity={0.8}
         >
-          <View style={styles.buttonContent}>
-            {isLoading ? (
-              <ActivityIndicator size="small" color="#fff" style={styles.spinner} />
-            ) : (
-              <Text style={styles.buttonIcon}>📧</Text>
-            )}
-            <Text style={styles.buttonText}>
-              {isLoading ? '인증번호 발송 중...' : '인증번호 요청'}
-            </Text>
-          </View>
+          <Text style={styles.oauthButtonText}>
+            {authState.isLoading ? '인증번호 발송 중...' : '인증번호 받기'}
+          </Text>
         </TouchableOpacity>
-
-        <Text style={styles.infoText}>
-          입력하신 이메일로 6자리 인증번호가 발송됩니다.{'\n'}
-          인증번호가 오지 않으면 스팸 메일함을 확인해주세요.
-        </Text>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -137,104 +78,91 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  header: {
-    backgroundColor: '#6c5ce7',
-    padding: 20,
-    paddingTop: 50,
+  // OAuth 헤더 스타일
+  oauthHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  backButton: {
-    marginRight: 15,
-  },
-  backButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#333',
-    textAlign: 'center',
-    marginBottom: 30,
-    lineHeight: 22,
-  },
-  inputContainer: {
-    marginBottom: 30,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  emailInput: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingHorizontal: 15,
+    paddingHorizontal: 16,
     paddingVertical: 12,
-    fontSize: 16,
-    backgroundColor: 'white',
+    backgroundColor: '#f3f4f6',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
   },
-  inputError: {
-    borderColor: '#ff6b6b',
+  headerBackButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'transparent',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  errorText: {
-    color: '#ff6b6b',
+  headerBackButtonText: {
+    fontSize: 24,
+    color: '#666',
+    fontWeight: 'bold',
+  },
+  headerSpacer: {
+    flex: 1,
+  },
+  // OAuth 계속하기 화면 스타일
+  continueHeader: {
+    paddingTop: 32,
+    paddingHorizontal: 32,
+    paddingBottom: 16,
+    alignItems: 'center',
+  },
+  continueTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  continueSubtitle: {
     fontSize: 14,
-    marginTop: 5,
+    color: '#666',
+    textAlign: 'center',
   },
-  requestButton: {
-    backgroundColor: '#6c5ce7',
+  continueContent: {
+    flex: 1,
+    paddingHorizontal: 32,
+    paddingTop: 32,
+  },
+  // 이메일 입력 스타일
+  emailInput: {
+    width: '100%',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
     borderRadius: 12,
+    fontSize: 16,
+    backgroundColor: '#f9fafb',
+    marginBottom: 24,
+  },
+  // OAuth 버튼 스타일
+  oauthButton: {
+    width: '100%',
     paddingVertical: 16,
     paddingHorizontal: 24,
-    marginBottom: 20,
+    borderRadius: 12,
+    marginVertical: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
-  disabledButton: {
-    opacity: 0.6,
+  emailOAuthButton: {
+    backgroundColor: '#1a1a1a',
   },
-  buttonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonIcon: {
-    fontSize: 20,
-    marginRight: 12,
-  },
-  spinner: {
-    marginRight: 12,
-  },
-  buttonText: {
-    color: '#fff',
+  oauthButtonText: {
     fontSize: 16,
     fontWeight: '600',
-  },
-  infoText: {
-    fontSize: 14,
-    color: '#666',
+    color: '#fff',
     textAlign: 'center',
-    lineHeight: 20,
-    backgroundColor: '#fff3cd',
-    padding: 15,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ffeaa7',
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
 });
