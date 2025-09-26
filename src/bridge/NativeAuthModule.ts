@@ -59,9 +59,33 @@ export class NativeAuthBridge implements ReactNativeBridge {
   constructor() {
     this.initializeEventEmitter();
     this.setupEventListeners();
+    this.checkNativeModuleAvailability();
   }
 
   // === 이벤트 시스템 초기화 ===
+  
+  /**
+   * 네이티브 모듈 가용성 확인
+   */
+  private checkNativeModuleAvailability(): void {
+    if (!NativeAuthModule) {
+      console.error(`[NativeAuthBridge] 네이티브 모듈이 로드되지 않았습니다. 네이티브 모듈이 올바르게 등록되었는지 확인하세요.`);
+      return;
+    }
+
+    console.log(`[NativeAuthBridge] 네이티브 모듈 로드됨: ${Platform.OS}`);
+    
+    // 필수 메서드 존재 여부 확인
+    const requiredMethods = ['startOAuth', 'getSession', 'signOut', 'callWithAuth'];
+    const availableMethods = requiredMethods.filter(method => typeof (NativeAuthModule as any)[method] === 'function');
+    
+    console.log(`[NativeAuthBridge] 사용 가능한 메서드: ${availableMethods.join(', ')}`);
+    
+    if (availableMethods.length !== requiredMethods.length) {
+      const missingMethods = requiredMethods.filter(method => !availableMethods.includes(method));
+      console.warn(`[NativeAuthBridge] 누락된 메서드: ${missingMethods.join(', ')}`);
+    }
+  }
   
   private initializeEventEmitter(): void {
     if (Platform.OS === 'ios' && NativeAuthModule) {
@@ -426,14 +450,25 @@ export class NativeAuthBridge implements ReactNativeBridge {
         return false;
       }
 
-      if (!NativeAuthModule.isModuleReady) {
-        console.warn(`[NativeAuthBridge] isModuleReady 메서드가 구현되지 않음`);
-        return true; // 기본적으로 사용 가능한 것으로 간주
+      // 네이티브 모듈의 기본 메서드들이 존재하는지 확인
+      const requiredMethods = ['startOAuth', 'getSession', 'signOut', 'callWithAuth'];
+      const missingMethods = requiredMethods.filter(method => !(NativeAuthModule as any)[method]);
+      
+      if (missingMethods.length > 0) {
+        console.warn(`[NativeAuthBridge] 필수 메서드가 누락됨: ${missingMethods.join(', ')}`);
+        return false;
       }
 
-      const isReady = await NativeAuthModule.isModuleReady();
-      console.log(`[NativeAuthBridge] 모듈 상태: ${isReady ? '정상' : '비정상'}`);
-      return isReady;
+      // isModuleReady 메서드가 있다면 사용
+      if (NativeAuthModule.isModuleReady) {
+        const isReady = await NativeAuthModule.isModuleReady();
+        console.log(`[NativeAuthBridge] 모듈 상태: ${isReady ? '정상' : '비정상'}`);
+        return isReady;
+      }
+
+      // 기본적으로 사용 가능한 것으로 간주
+      console.log(`[NativeAuthBridge] 모듈 상태: 정상 (기본 확인)`);
+      return true;
     } catch (error) {
       console.error(`[NativeAuthBridge] 헬스 체크 실패:`, error);
       return false;
