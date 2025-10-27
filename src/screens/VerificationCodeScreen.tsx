@@ -1,212 +1,245 @@
 /**
- * 인증번호 입력 화면
+ * VerificationCodeScreen - 인증번호 입력 화면
+ * 6자리 인증번호 입력, 재발송, 타이머 기능을 제공
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  Alert, 
+  StyleSheet 
 } from 'react-native';
+import { AuthManager } from '@growgrammers/auth-core';
+import { AuthActions } from '../utils/AuthEventHandler';
+import { Header } from '../components/Header';
+import { MessageDisplay, MessageType } from '../components/MessageDisplay';
 
 interface VerificationCodeScreenProps {
-  email: string;
-  onVerifyCode: (email: string, verificationCode: string) => Promise<boolean>;
+  emailForVerification: string;
   onBack: () => void;
-  onResendCode: (email: string) => Promise<boolean>;
-  isLoading?: boolean;
+  setCurrentAuthManager: (manager: AuthManager) => void;
+  setCurrentProvider: (provider: 'email' | 'google' | 'kakao' | 'naver') => void;
+  setCurrentScreen: (screen: string) => void;
+  emailAuthManager: AuthManager;
+  refreshSession: () => Promise<void>;
 }
 
-export function VerificationCodeScreen({
-  email,
-  onVerifyCode,
-  onBack,
-  onResendCode,
-  isLoading = false,
+export function VerificationCodeScreen({ 
+  emailForVerification, 
+  onBack, 
+  setCurrentAuthManager, 
+  setCurrentProvider, 
+  setCurrentScreen, 
+  emailAuthManager, 
+  refreshSession 
 }: VerificationCodeScreenProps) {
-  const [verificationCode, setVerificationCode] = useState('');
-  const [codeError, setCodeError] = useState('');
-  const [resendTimer, setResendTimer] = useState(60);
+  const [verificationDigits, setVerificationDigits] = useState(['', '', '', '', '', '']);
+  const [isLoading, setIsLoading] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(300); // 5분 = 300초
   const [canResend, setCanResend] = useState(false);
-  const [resendSuccess, setResendSuccess] = useState('');
-  const codeInputRef = useRef<TextInput>(null);
+  const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState<MessageType>('info');
+  const inputRefs = useRef<(TextInput | null)[]>([]);
 
-  // 타이머 설정
+  // 타이머 효과
   useEffect(() => {
-    if (resendTimer > 0) {
+    if (timeLeft > 0) {
       const timer = setTimeout(() => {
-        setResendTimer(resendTimer - 1);
+        setTimeLeft(timeLeft - 1);
       }, 1000);
       return () => clearTimeout(timer);
     } else {
       setCanResend(true);
     }
-  }, [resendTimer]);
+  }, [timeLeft]);
 
-  // 화면 진입 시 자동 포커스
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      codeInputRef.current?.focus();
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // 인증번호 검증
-  const validateCode = (code: string): boolean => {
-    return /^\d{6}$/.test(code);
+  // 인증번호 개별 입력 처리
+  const handleDigitChange = (index: number, value: string) => {
+    // 숫자만 허용
+    if (value && !/^\d$/.test(value)) return;
+    
+    const newDigits = [...verificationDigits];
+    const previousValue = newDigits[index];
+    newDigits[index] = value;
+    setVerificationDigits(newDigits);
+    
+    // 값이 입력되었을 때 다음 필드로 이동
+    if (value && index < 5) {
+      inputRefs.current[index + 1]?.focus();
+    }
+    // 값이 지워졌을 때 (이전에 값이 있었고 현재 비어있을 때) 이전 필드로 이동
+    else if (!value && previousValue && index > 0) {
+      setTimeout(() => {
+        inputRefs.current[index - 1]?.focus();
+      }, 10);
+    }
   };
 
-  // 인증번호 확인 처리
-  const handleVerifyCode = async () => {
-    if (!verificationCode.trim()) {
-      setCodeError('인증번호를 입력해주세요.');
+  // 계속하기 버튼 처리
+  const handleContinue = async () => {
+    const code = verificationDigits.join('');
+    if (code.length !== 6) {
+      setMessage('❌ 6자리 인증번호를 모두 입력해주세요.');
+      setMessageType('error');
       return;
     }
 
-    if (!validateCode(verificationCode.trim())) {
-      setCodeError('6자리 숫자를 입력해주세요.');
-      return;
-    }
-
-    setCodeError('');
+    setIsLoading(true);
+    setMessage('');
 
     try {
-      const success = await onVerifyCode(email, verificationCode.trim());
-      if (!success) {
-        setCodeError('인증번호가 올바르지 않습니다. 다시 확인해주세요.');
+      // 이메일 AuthManager로 전환
+      setCurrentAuthManager(emailAuthManager);
+      setCurrentProvider('email');
+      
+      // 상태 전환을 위해 잠시 대기
+      await new Promise<void>(resolve => setTimeout(() => resolve(), 50));
+      
+      // 이메일 AuthManager 사용
+      const emailAuthActions = new AuthActions(emailAuthManager);
+      const success = await emailAuthActions.loginWithEmail(emailForVerification, code);
+      
+      if (success) {
+        setMessage('✅ 로그인 성공!');
+        setMessageType('success');
+        // 메인 화면으로 이동
+        setCurrentScreen('login');
+        
+        // 세션 상태 새로고침
+        setTimeout(async () => {
+          console.log('[App] 세션 상태 새로고침 시작');
+          await refreshSession();
+        }, 100);
+      } else {
+        setMessage('❌ 인증번호가 올바르지 않습니다.');
+        setMessageType('error');
       }
     } catch (error) {
       console.error('인증번호 확인 오류:', error);
-      setCodeError('인증번호 확인 중 오류가 발생했습니다.');
+      setMessage('❌ 인증번호 확인 중 오류가 발생했습니다.');
+      setMessageType('error');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   // 인증번호 재발송
-  const handleResendCode = async () => {
+  const handleResend = async () => {
     if (!canResend) return;
 
+    setIsLoading(true);
+    setMessage('');
+
     try {
-      const success = await onResendCode(email);
+      const emailAuthActions = new AuthActions(emailAuthManager);
+      const success = await emailAuthActions.requestEmailVerification(emailForVerification);
+      
       if (success) {
-        setResendTimer(60);
+        setMessage('✅ 인증번호가 재발송되었습니다.');
+        setMessageType('success');
+        setTimeLeft(300); // 5분으로 리셋
         setCanResend(false);
-        setResendSuccess('인증번호가 재발송되었습니다.');
-        setCodeError('');
-        // 3초 후 성공 메시지 제거
-        setTimeout(() => setResendSuccess(''), 3000);
+        setVerificationDigits(['', '', '', '', '', '']);
       } else {
-        setCodeError('인증번호 재발송에 실패했습니다.');
-        setResendSuccess('');
+        setMessage('❌ 인증번호 재발송에 실패했습니다.');
+        setMessageType('error');
       }
     } catch (error) {
       console.error('인증번호 재발송 오류:', error);
-      setCodeError('인증번호 재발송 중 오류가 발생했습니다.');
-      setResendSuccess('');
+      setMessage('❌ 인증번호 재발송 중 오류가 발생했습니다.');
+      setMessageType('error');
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  // 시간 포맷팅
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
   return (
-    <KeyboardAvoidingView 
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backButtonText}>← 뒤로</Text>
+    <View style={styles.container}>
+      <Header onBack={onBack} />
+      
+      <View style={styles.verificationHeader}>
+        <Text style={styles.verificationTitle}>인증번호 입력</Text>
+        <Text style={styles.verificationSubtitle}>({emailForVerification})로 인증번호를 보냈습니다</Text>
+        <TouchableOpacity onPress={() => setCurrentScreen('email-input')} style={styles.editButton}>
+          <Text style={styles.editButtonText}>수정</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>인증번호 확인</Text>
       </View>
-
-      <View style={styles.content}>
-        <Text style={styles.subtitle}>
-          <Text style={styles.emailText}>{email}</Text>로{'\n'}
-          인증번호를 발송했습니다.
-        </Text>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>인증번호 (6자리)</Text>
-          <TextInput
-            ref={codeInputRef}
-            style={[
-              styles.codeInput,
-              codeError ? styles.inputError : null,
-            ]}
-            value={verificationCode}
-            onChangeText={(text) => {
-              // 숫자만 입력 허용, 최대 6자리
-              const numbersOnly = text.replace(/[^0-9]/g, '').slice(0, 6);
-              setVerificationCode(numbersOnly);
-              if (codeError) setCodeError('');
-            }}
-            placeholder="123456"
-            placeholderTextColor="#999"
-            keyboardType="numeric"
-            maxLength={6}
-            editable={!isLoading}
-            textAlign="center"
-            selectTextOnFocus
-          />
-          {codeError ? (
-            <Text style={styles.errorText}>{codeError}</Text>
-          ) : null}
-          {resendSuccess ? (
-            <Text style={styles.successText}>{resendSuccess}</Text>
-          ) : null}
+      
+      <View style={styles.verificationContent}>
+        {/* 6자리 인증번호 입력 필드들 */}
+        <View style={styles.digitInputsContainer}>
+          {[0, 1, 2, 3, 4, 5].map((index) => (
+            <TextInput
+              key={index}
+              ref={(ref) => {
+                inputRefs.current[index] = ref;
+              }}
+              style={styles.digitInput}
+              placeholder="0"
+              placeholderTextColor="#999"
+              keyboardType="numeric"
+              maxLength={1}
+              textAlign="center"
+              value={verificationDigits[index]}
+              onChangeText={(value) => handleDigitChange(index, value)}
+              editable={!isLoading}
+            />
+          ))}
         </View>
-
+        
+        <TouchableOpacity 
+          style={styles.resendButton}
+          onPress={handleResend}
+          disabled={!canResend || isLoading}
+        >
+          <Text style={[
+            styles.resendButtonText,
+            (!canResend || isLoading) && styles.disabledResendText
+          ]}>
+            {canResend ? '인증번호 다시 받기' : `${formatTime(timeLeft)}`}
+          </Text>
+        </TouchableOpacity>
+        
+        {/* 메시지 표시 */}
+        <MessageDisplay 
+          message={message} 
+          type={messageType}
+          visible={!!message}
+        />
+        
         <TouchableOpacity
           style={[
-            styles.verifyButton,
-            isLoading && styles.disabledButton,
+            styles.oauthButton,
+            styles.emailOAuthButton,
+            (isLoading || verificationDigits.join('').length !== 6) && styles.disabledButton
           ]}
-          onPress={handleVerifyCode}
-          disabled={isLoading}
+          onPress={handleContinue}
+          disabled={isLoading || verificationDigits.join('').length !== 6}
           activeOpacity={0.8}
         >
-          <View style={styles.buttonContent}>
-            {isLoading ? (
-              <ActivityIndicator size="small" color="#fff" style={styles.spinner} />
-            ) : (
-              <Text style={styles.buttonIcon}>✓</Text>
-            )}
-            <Text style={styles.buttonText}>
-              {isLoading ? '인증 중...' : '인증번호 확인'}
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        <View style={styles.resendContainer}>
-          <Text style={styles.resendInfo}>
-            인증번호가 오지 않았나요?
+          <Text style={styles.oauthButtonText}>
+            {isLoading ? '로그인 중...' : '계속하기'}
           </Text>
-          <TouchableOpacity
-            onPress={handleResendCode}
-            disabled={!canResend || isLoading}
-            style={styles.resendButton}
-          >
-            <Text style={[
-              styles.resendText,
-              (!canResend || isLoading) && styles.disabledText
-            ]}>
-              {canResend 
-                ? '인증번호 재발송' 
-                : `재발송 (${resendTimer}초)`
-              }
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <Text style={styles.infoText}>
-          인증번호는 5분간 유효합니다.{'\n'}
-          인증번호가 오지 않으면 스팸 메일함을 확인해주세요.
-        </Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.emailNotReceivedButton}
+          onPress={() => Alert.alert('알림', '이메일이 오지 않는 경우 문의는 추후 구현 예정입니다.')}
+        >
+          <Text style={styles.emailNotReceivedText}>이메일이 안 오나요?</Text>
+        </TouchableOpacity>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -215,143 +248,112 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  header: {
-    backgroundColor: '#6c5ce7',
-    padding: 20,
-    paddingTop: 50,
-    flexDirection: 'row',
+  // 인증번호 입력 화면 스타일
+  verificationHeader: {
+    paddingTop: 64,
+    paddingHorizontal: 32,
+    paddingBottom: 16,
     alignItems: 'center',
   },
-  backButton: {
-    marginRight: 15,
-  },
-  backButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  title: {
-    fontSize: 20,
+  verificationTitle: {
+    fontSize: 24,
     fontWeight: 'bold',
-    color: 'white',
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#333',
+    color: '#1a1a1a',
+    marginBottom: 8,
     textAlign: 'center',
-    marginBottom: 30,
-    lineHeight: 22,
   },
-  emailText: {
-    fontWeight: 'bold',
-    color: '#6c5ce7',
-  },
-  inputContainer: {
-    marginBottom: 30,
-    alignItems: 'center',
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+  verificationSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
     marginBottom: 8,
   },
-  codeInput: {
+  editButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  editButtonText: {
+    fontSize: 14,
+    color: '#666',
+    textDecorationLine: 'underline',
+  },
+  verificationContent: {
+    flex: 1,
+    paddingHorizontal: 32,
+    paddingTop: 32,
+    alignItems: 'center',
+  },
+  digitInputsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  digitInput: {
+    width: 48,
+    height: 64,
     borderWidth: 2,
-    borderColor: '#ddd',
+    borderColor: '#e5e7eb',
     borderRadius: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
     fontSize: 24,
-    backgroundColor: 'white',
-    width: 200,
-    fontWeight: 'bold',
-    letterSpacing: 5,
-  },
-  inputError: {
-    borderColor: '#ff6b6b',
-  },
-  errorText: {
-    color: '#ff6b6b',
-    fontSize: 14,
-    marginTop: 8,
+    fontWeight: '600',
+    backgroundColor: '#f9fafb',
     textAlign: 'center',
   },
-  successText: {
-    color: '#28a745',
-    fontSize: 14,
-    marginTop: 8,
-    textAlign: 'center',
-    fontWeight: '500',
+  resendButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    alignSelf: 'flex-end',
   },
-  verifyButton: {
-    backgroundColor: '#6c5ce7',
-    borderRadius: 12,
+  resendButtonText: {
+    fontSize: 14,
+    color: '#666',
+    textDecorationLine: 'underline',
+  },
+  disabledResendText: {
+    color: '#999',
+    textDecorationLine: 'none',
+  },
+  emailNotReceivedButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginTop: 8,
+  },
+  emailNotReceivedText: {
+    fontSize: 14,
+    color: '#666',
+    textDecorationLine: 'underline',
+    textAlign: 'center',
+  },
+  // OAuth 버튼 스타일
+  oauthButton: {
+    width: '100%',
     paddingVertical: 16,
     paddingHorizontal: 24,
-    marginBottom: 30,
+    borderRadius: 12,
+    marginVertical: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
-  disabledButton: {
-    opacity: 0.6,
+  emailOAuthButton: {
+    backgroundColor: '#1a1a1a',
   },
-  buttonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonIcon: {
-    fontSize: 20,
-    marginRight: 12,
-  },
-  spinner: {
-    marginRight: 12,
-  },
-  buttonText: {
-    color: '#fff',
+  oauthButtonText: {
     fontSize: 16,
     fontWeight: '600',
-  },
-  resendContainer: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  resendInfo: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 10,
-  },
-  resendButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  resendText: {
-    fontSize: 14,
-    color: '#6c5ce7',
-    fontWeight: '500',
-    textDecorationLine: 'underline',
-  },
-  disabledText: {
-    color: '#999',
-    textDecorationLine: 'none',
-  },
-  infoText: {
-    fontSize: 12,
-    color: '#666',
+    color: '#fff',
     textAlign: 'center',
-    lineHeight: 18,
-    backgroundColor: '#f8f9fa',
-    padding: 15,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
 });

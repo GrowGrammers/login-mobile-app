@@ -16,14 +16,16 @@ interface LoginButtonProps {
   onPress: () => void;
   isLoading?: boolean;
   disabled?: boolean;
-  provider: 'google' | 'kakao' | 'email';
+  provider: 'google' | 'kakao' | 'naver' | 'email' | 'start' | 'phone' | 'facebook' | 'apple' | 'close' | 'back';
+  currentProvider?: string;
 }
 
 export function LoginButton({ 
   onPress, 
   isLoading = false, 
   disabled = false,
-  provider 
+  provider,
+  currentProvider
 }: LoginButtonProps) {
   const getButtonStyle = () => {
     switch (provider) {
@@ -31,8 +33,22 @@ export function LoginButton({
         return styles.googleButton;
       case 'kakao':
         return styles.kakaoButton;
+      case 'naver':
+        return styles.naverButton;
       case 'email':
         return styles.emailButton;
+      case 'start':
+        return styles.startButton;
+      case 'phone':
+        return styles.phoneButton;
+      case 'facebook':
+        return styles.socialButton;
+      case 'apple':
+        return styles.socialButton;
+      case 'close':
+        return styles.closeButton;
+      case 'back':
+        return styles.backButton;
       default:
         return styles.googleButton;
     }
@@ -44,8 +60,22 @@ export function LoginButton({
         return styles.googleText;
       case 'kakao':
         return styles.kakaoText;
+      case 'naver':
+        return styles.naverText;
       case 'email':
         return styles.emailText;
+      case 'start':
+        return styles.startText;
+      case 'phone':
+        return styles.phoneText;
+      case 'facebook':
+        return styles.socialText;
+      case 'apple':
+        return styles.socialText;
+      case 'close':
+        return styles.closeText;
+      case 'back':
+        return styles.backText;
       default:
         return styles.googleText;
     }
@@ -56,9 +86,23 @@ export function LoginButton({
       case 'google':
         return '🔍';
       case 'kakao':
-        return '💬';
+        return '💛';
+      case 'naver':
+        return '🔵';
       case 'email':
-        return '📧';
+        return '';
+      case 'start':
+        return '';
+      case 'phone':
+        return '';
+      case 'facebook':
+        return '📘';
+      case 'apple':
+        return '🍎';
+      case 'close':
+        return '×';
+      case 'back':
+        return '←';
       default:
         return '🔍';
     }
@@ -70,8 +114,22 @@ export function LoginButton({
         return 'Google';
       case 'kakao':
         return 'Kakao';
+      case 'naver':
+        return 'Naver';
       case 'email':
-        return '이메일';
+        return '이메일로 계속하기';
+      case 'start':
+        return '시작하기';
+      case 'phone':
+        return '전화번호로 계속하기';
+      case 'facebook':
+        return '';
+      case 'apple':
+        return '';
+      case 'close':
+        return '';
+      case 'back':
+        return `로그아웃 (${currentProvider?.toUpperCase() || 'UNKNOWN'})`;
       default:
         return 'Google';
     }
@@ -85,11 +143,62 @@ export function LoginButton({
         return '#000';
       case 'email':
         return '#fff';
+      case 'start':
+        return '#fff';
+      case 'phone':
+        return '#000';
+      case 'facebook':
+        return '#000';
+      case 'apple':
+        return '#000';
+      case 'close':
+        return '#666';
+      case 'back':
+        return '#666';
       default:
         return '#fff';
     }
   };
   
+  // 소셜 버튼 (아이콘만 표시)
+  if (provider === 'facebook' || provider === 'apple' || provider === 'google' || provider === 'kakao' || provider === 'naver') {
+    return (
+      <TouchableOpacity
+        style={[
+          styles.socialButton,
+          (disabled || isLoading) && styles.disabledButton
+        ]}
+        onPress={onPress}
+        disabled={disabled || isLoading}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.socialIcon}>
+          {getIcon()}
+        </Text>
+      </TouchableOpacity>
+    );
+  }
+
+  // 닫기 버튼 (아이콘만 표시)
+  if (provider === 'close') {
+    return (
+      <TouchableOpacity
+        style={[
+          styles.closeButton,
+          (disabled || isLoading) && styles.disabledButton
+        ]}
+        onPress={onPress}
+        disabled={disabled || isLoading}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.closeIcon}>
+          {getIcon()}
+        </Text>
+      </TouchableOpacity>
+    );
+  }
+
+  // 일반 버튼
   return (
     <TouchableOpacity
       style={[
@@ -109,9 +218,11 @@ export function LoginButton({
             style={styles.spinner}
           />
         ) : (
-          <Text style={styles.icon}>
-            {getIcon()}
-          </Text>
+          getIcon() && (
+            <Text style={styles.icon}>
+              {getIcon()}
+            </Text>
+          )
         )}
         
         <Text style={[
@@ -120,7 +231,7 @@ export function LoginButton({
         ]}>
           {isLoading 
             ? `${getProviderName()} 로그인 중...`
-            : `${getProviderName()}로 로그인`
+            : getProviderName()
           }
         </Text>
       </View>
@@ -185,8 +296,11 @@ const styles = StyleSheet.create({
   kakaoButton: {
     backgroundColor: '#fee500',
   },
+  naverButton: {
+    backgroundColor: '#03c75a',
+  },
   emailButton: {
-    backgroundColor: '#6c5ce7',
+    backgroundColor: '#f3f4f6',
   },
   logoutButton: {
     backgroundColor: '#ff6b6b',
@@ -216,13 +330,75 @@ const styles = StyleSheet.create({
   kakaoText: {
     color: '#000',
   },
-  emailText: {
+  naverText: {
     color: '#fff',
+  },
+  emailText: {
+    color: '#000',
   },
   logoutText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // 새로운 버튼 스타일들
+  startButton: {
+    backgroundColor: '#1a1a1a',
+  },
+  phoneButton: {
+    backgroundColor: '#1a1a1a',
+  },
+  socialButton: {
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 16,
+    flex: 1,
+    height: 64,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  closeButton: {
+    backgroundColor: 'transparent',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 0,
+  },
+  backButton: {
+    backgroundColor: '#f3f4f6',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+  },
+  startText: {
+    color: '#fff',
+  },
+  phoneText: {
+    color: '#fff',
+  },
+  socialText: {
+    color: '#000',
+  },
+  closeText: {
+    color: '#666',
+  },
+  backText: {
+    color: '#666',
+  },
+  socialIcon: {
+    fontSize: 20,
+  },
+  closeIcon: {
+    fontSize: 20,
+    color: '#666',
   },
 });
 
