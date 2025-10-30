@@ -178,11 +178,17 @@ function LoginMobileApp({
       const success = await authActions.signOut();
       if (success) {
         console.log('[App] 로그아웃 성공');
+        // 웹 앱과 동일하게 스플래시 화면으로 리다이렉트
+        handleBackToSplash();
       } else {
         console.log('[App] 로그아웃 실패');
+        // 실패해도 스플래시 화면으로 이동 (로컬 세션 정리)
+        handleBackToSplash();
       }
     } catch (error) {
       console.error('[App] 로그아웃 예외:', error);
+      // 예외 발생해도 스플래시 화면으로 이동 (로컬 세션 정리)
+      handleBackToSplash();
     }
   };
 
