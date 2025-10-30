@@ -64,6 +64,9 @@ export function useAuthState(authManager: AuthManager | null): {
 } {
   const [authState, setAuthState] = useState<AuthState>(initialAuthState);
   const bridgeRef = useRef<ReactNativeBridge | null>(null);
+  const loginSuccessTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const autoRefreshTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const autoStopTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // === 이벤트 핸들러 ===
   
@@ -102,7 +105,7 @@ export function useAuthState(authManager: AuthManager | null): {
           }
           
           // 로그인 성공 시 자동 토큰 갱신 시작
-          setTimeout(async () => {
+          autoRefreshTimerRef.current = setTimeout(async () => {
             try {
               const bridge = authManager?.getNativeBridge() as ExtendedReactNativeBridge;
               if (bridge && bridge.startAutoTokenRefresh) {
@@ -115,7 +118,7 @@ export function useAuthState(authManager: AuthManager | null): {
           }, 100);
 
           // 3초 후 loginSuccessTriggered 플래그 자동 리셋
-          setTimeout(() => {
+          loginSuccessTimerRef.current = setTimeout(() => {
             setAuthState(prevState => ({
               ...prevState,
               loginSuccessTriggered: false
@@ -147,7 +150,7 @@ export function useAuthState(authManager: AuthManager | null): {
           newState.oauthProvider = null;
           
           // 로그아웃 시 자동 토큰 갱신 중지
-          setTimeout(async () => {
+          autoStopTimerRef.current = setTimeout(async () => {
             try {
               const bridge = authManager?.getNativeBridge() as ExtendedReactNativeBridge;
               if (bridge && bridge.stopAutoTokenRefresh) {
@@ -222,6 +225,20 @@ export function useAuthState(authManager: AuthManager | null): {
     return () => {
       if (bridgeRef.current) {
         bridgeRef.current.removeAuthStatusListener(handleAuthEvent);
+      }
+      
+      // 타이머 클린업
+      if (loginSuccessTimerRef.current) {
+        clearTimeout(loginSuccessTimerRef.current);
+        loginSuccessTimerRef.current = null;
+      }
+      if (autoRefreshTimerRef.current) {
+        clearTimeout(autoRefreshTimerRef.current);
+        autoRefreshTimerRef.current = null;
+      }
+      if (autoStopTimerRef.current) {
+        clearTimeout(autoStopTimerRef.current);
+        autoStopTimerRef.current = null;
       }
     };
   }, [authManager, handleAuthEvent, refreshSession]);
