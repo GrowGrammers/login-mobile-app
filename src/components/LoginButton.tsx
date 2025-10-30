@@ -173,6 +173,18 @@ export function LoginButton({
         return '#fff';
       case 'logout':
         return '#fff';
+      case 'start':
+        return '#fff';
+      case 'phone':
+        return '#000';
+      case 'facebook':
+        return '#000';
+      case 'apple':
+        return '#000';
+      case 'close':
+        return '#666';
+      case 'back':
+        return '#666';
       default:
         return '#fff';
     }
