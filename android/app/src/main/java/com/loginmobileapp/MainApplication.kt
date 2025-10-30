@@ -9,6 +9,8 @@ import com.facebook.react.ReactNativeHost
 import com.facebook.react.ReactPackage
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import com.facebook.react.defaults.DefaultReactNativeHost
+import com.facebook.react.soloader.OpenSourceMergedSoMapping
+import com.facebook.soloader.SoLoader
 
 class MainApplication : Application(), ReactApplication {
 
@@ -33,6 +35,11 @@ class MainApplication : Application(), ReactApplication {
 
   override fun onCreate() {
     super.onCreate()
-    loadReactNative(this)
+      android.util.Log.d("RNApp", "IS_NEW_ARCH=${BuildConfig.IS_NEW_ARCHITECTURE_ENABLED}, HERMES=${BuildConfig.IS_HERMES_ENABLED}")
+      // New Architecture에서는 merged .so 파일 매핑 등록이 필요
+      SoLoader.init(this, OpenSourceMergedSoMapping)
+      if (BuildConfig.IS_NEW_ARCHITECTURE_ENABLED) {
+          loadReactNative(this)
+      }
   }
 }
