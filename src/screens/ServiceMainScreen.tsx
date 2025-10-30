@@ -12,18 +12,20 @@ interface ServiceMainScreenProps {
   onGoToDashboard: () => void;
   onLogout: () => void;
   onGoToLogin: () => void;
+  onBackToLoginComplete?: () => void;
 }
 
 export function ServiceMainScreen({
   isAuthenticated,
   onGoToDashboard,
   onLogout,
-  onGoToLogin
+  onGoToLogin,
+  onBackToLoginComplete
 }: ServiceMainScreenProps) {
   return (
     <View style={styles.container}>
       {/* 헤더 (뒤로가기 버튼 없음) */}
-      <Header showBackButton={false} />
+      <Header showBackButton={true} onBack={onBackToLoginComplete} />
       
       <View style={styles.content}>
         <View style={styles.mainContent}>

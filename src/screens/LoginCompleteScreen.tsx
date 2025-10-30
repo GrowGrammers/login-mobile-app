@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
-import { Header } from '../components/Header';
+//import { Header } from '../components/Header';
 
 interface LoginCompleteScreenProps {
   onConnectNow: () => void;
@@ -19,8 +19,8 @@ export function LoginCompleteScreen({
   return (
     <View style={styles.container}>
       {/* 헤더 (뒤로가기 버튼 없음) */}
-      <Header showBackButton={false} />
-      
+      {/* <Header showBackButton={false} />
+       */}
       <View style={styles.content}>
         {/* 체크마크 이미지 */}
         <View style={styles.imageContainer}>

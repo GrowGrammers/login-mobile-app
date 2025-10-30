@@ -9,12 +9,13 @@ import {
   Text, 
   TextInput, 
   TouchableOpacity, 
-  Alert, 
   StyleSheet 
 } from 'react-native';
 import { AuthManager } from '@growgrammers/auth-core';
 import { AuthActions } from '../utils/AuthEventHandler';
 import { Header } from '../components/Header';
+import { BottomSheet } from '../components/BottomSheet';
+import { EmailInquiryContent } from '../components/EmailInquiryContent';
 
 interface VerificationCodeScreenProps {
   emailForVerification: string;
@@ -43,6 +44,7 @@ export function VerificationCodeScreen({
   const [canResend, setCanResend] = useState(false);
   const [message, setMessage] = useState('');
   const [_messageType, setMessageType] = useState<'info' | 'success' | 'error'>('info');
+  const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
   const inputRefs = useRef<(TextInput | null)[]>([]);
 
   // 타이머 효과
@@ -133,6 +135,46 @@ export function VerificationCodeScreen({
     }
   };
 
+  // Bottom Sheet 핸들러들
+  const handleEmailInquiry = () => {
+    setIsBottomSheetOpen(true);
+  };
+
+  const handleCloseBottomSheet = () => {
+    setIsBottomSheetOpen(false);
+  };
+
+  const handleResendVerification = async () => {
+    setIsBottomSheetOpen(false);
+    
+    // 인증번호 필드 초기화
+    setVerificationDigits(['', '', '', '', '', '']);
+    setMessage('');
+    
+    // 타이머 리셋
+    setTimeLeft(300);
+    setCanResend(false);
+    
+    try {
+      setIsLoading(true);
+      const emailAuthActions = new AuthActions(emailAuthManager);
+      const success = await emailAuthActions.requestEmailVerification(emailForVerification);
+      
+      if (success) {
+        setMessage('✅ 인증번호가 재발송되었습니다.');
+        setMessageType('success');
+      } else {
+        setMessage('❌ 인증번호 재발송에 실패했습니다.');
+        setMessageType('error');
+      }
+    } catch (error) {
+      console.error('인증번호 재발송 오류:', error);
+      setMessage('❌ 인증번호 재발송 중 오류가 발생했습니다.');
+      setMessageType('error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // 시간 포맷팅
   const formatTime = (seconds: number) => {
@@ -205,13 +247,25 @@ export function VerificationCodeScreen({
             {/* 문의 링크 */}
         <TouchableOpacity 
               style={styles.inquiryButton}
-          onPress={() => Alert.alert('알림', '이메일이 오지 않는 경우 문의는 추후 구현 예정입니다.')}
+          onPress={handleEmailInquiry}
         >
               <Text style={styles.inquiryText}>인증번호가 안 오나요?</Text>
         </TouchableOpacity>
           </View>
         </View>
       </View>
+
+      {/* Bottom Sheet */}
+      <BottomSheet
+        isOpen={isBottomSheetOpen}
+        onClose={handleCloseBottomSheet}
+        title="확인해보세요."
+      >
+        <EmailInquiryContent
+          onResend={handleResendVerification}
+          isLoading={isLoading}
+        />
+      </BottomSheet>
     </View>
   );
 }

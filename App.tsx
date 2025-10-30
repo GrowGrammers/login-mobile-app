@@ -221,6 +221,7 @@ function LoginMobileApp({
         onGoToDashboard={handleGoToDashboard}
         onLogout={handleLogout}
         onGoToLogin={handleGoToLogin}
+        onBackToLoginComplete={handleBackToLoginComplete}
       />
     );
   }
