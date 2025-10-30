@@ -3,10 +3,11 @@
  * App.tsx에서 화면 전환 로직을 분리
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { AuthManager } from '@growgrammers/auth-core';
+import { useAuthState } from '../utils/AuthEventHandler';
 
-export type ScreenType = 'splash' | 'login' | 'email-input' | 'verification-code' | 'google-continue' | 'kakao-continue' | 'naver-continue';
+export type ScreenType = 'splash' | 'login' | 'email-input' | 'verification-code' | 'google-continue' | 'kakao-continue' | 'naver-continue' | 'login-complete' | 'service-main' | 'dashboard';
 
 export type ProviderType = 'email' | 'google' | 'kakao' | 'naver';
 
@@ -29,6 +30,12 @@ interface UseScreenNavigationReturn {
   handleBack: () => void;
   handleEmailLogin: () => void;
   handleOAuthContinue: (provider: 'google' | 'kakao' | 'naver') => void;
+  handleLoginSuccess: () => void;
+  handleConnectNow: () => void;
+  handleLater: () => void;
+  handleGoToDashboard: () => void;
+  handleGoToLogin: () => void;
+  handleBackToLoginComplete: () => void;
   switchToGoogleAuth: () => void;
   switchToEmailAuth: () => void;
   switchToKakaoAuth: () => void;
@@ -45,6 +52,20 @@ export function useScreenNavigation({
   const [currentAuthManager, setCurrentAuthManager] = useState<AuthManager>(emailAuthManager);
   const [currentProvider, setCurrentProvider] = useState<ProviderType>('email');
   const [emailForVerification, setEmailForVerification] = useState<string>('');
+  
+  // 현재 AuthManager의 인증 상태 감시
+  const { authState } = useAuthState(currentAuthManager);
+
+  // 소셜 로그인 성공 시 LoginComplete 화면으로 자동 이동 (한 번만)
+  useEffect(() => {
+    if (authState.loginSuccessTriggered && authState.isLoggedIn && 
+        currentScreen !== 'login-complete' && 
+        currentScreen !== 'dashboard' && 
+        currentScreen !== 'service-main') {
+      console.log('[useScreenNavigation] 소셜 로그인 성공 감지 - LoginComplete 화면으로 이동');
+      setCurrentScreen('login-complete');
+    }
+  }, [authState.loginSuccessTriggered, authState.isLoggedIn, currentScreen]);
 
   // 구글 AuthManager로 전환
   const switchToGoogleAuth = useCallback(() => {
@@ -111,6 +132,43 @@ export function useScreenNavigation({
     setCurrentScreen(`${provider}-continue` as ScreenType);
   }, []);
 
+  // 로그인 성공 핸들러
+  const handleLoginSuccess = useCallback(() => {
+    console.log('[useScreenNavigation] 로그인 성공 - LoginComplete 화면으로 이동');
+    setCurrentScreen('login-complete');
+  }, []);
+
+  // 지금 연동하러 가기 (대시보드로)
+  const handleConnectNow = useCallback(() => {
+    console.log('[useScreenNavigation] 지금 연동하러 가기 - 대시보드로 이동');
+    setCurrentScreen('dashboard');
+  }, []);
+
+  // 다음에 할게요 (서비스 메인으로)
+  const handleLater = useCallback(() => {
+    console.log('[useScreenNavigation] 다음에 할게요 - 서비스 메인으로 이동');
+    setCurrentScreen('service-main');
+  }, []);
+
+  // 회원정보 확인 (대시보드로)
+  const handleGoToDashboard = useCallback(() => {
+    console.log('[useScreenNavigation] 회원정보 확인 - 대시보드로 이동');
+    setCurrentScreen('dashboard');
+  }, []);
+
+  // 로그인하러 가기 (로그인 선택으로)
+  const handleGoToLogin = useCallback(() => {
+    console.log('[useScreenNavigation] 로그인하러 가기 - 로그인 선택으로 이동');
+    setCurrentScreen('login');
+  }, []);
+
+  // 로그인 완료 화면으로 돌아가기
+  const handleBackToLoginComplete = useCallback(() => {
+    console.log('[useScreenNavigation] 로그인 완료 화면으로 돌아가기');
+    setCurrentScreen('login-complete');
+  }, []);
+
+
   return {
     currentScreen,
     currentAuthManager,
@@ -123,6 +181,12 @@ export function useScreenNavigation({
     handleBack,
     handleEmailLogin,
     handleOAuthContinue,
+    handleLoginSuccess,
+    handleConnectNow,
+    handleLater,
+    handleGoToDashboard,
+    handleGoToLogin,
+    handleBackToLoginComplete,
     switchToGoogleAuth,
     switchToEmailAuth,
     switchToKakaoAuth,

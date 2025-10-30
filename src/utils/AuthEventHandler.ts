@@ -20,6 +20,7 @@ export interface AuthState {
   // === 로그인 상태 ===
   isLoggedIn: boolean;
   isLoading: boolean;
+  loginSuccessTriggered?: boolean; // 로그인 성공 플래그 추가
   
   // === 사용자 정보 ===
   userInfo: any | null;
@@ -95,6 +96,7 @@ export function useAuthState(authManager: AuthManager | null): {
           newState.isOAuthInProgress = false;
           newState.isLoading = false;
           newState.error = null;
+          newState.loginSuccessTriggered = true; // 로그인 성공 플래그 추가
           if (data?.user) {
             newState.userInfo = data.user;
           }
@@ -111,6 +113,14 @@ export function useAuthState(authManager: AuthManager | null): {
               console.error('[AuthEventHandler] 자동 토큰 갱신 시작 실패:', error);
             }
           }, 100);
+
+          // 3초 후 loginSuccessTriggered 플래그 자동 리셋
+          setTimeout(() => {
+            setAuthState(prevState => ({
+              ...prevState,
+              loginSuccessTriggered: false
+            }));
+          }, 3000);
           break;
           
         case 'error':

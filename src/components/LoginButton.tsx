@@ -24,7 +24,7 @@ interface LoginButtonProps {
   onPress: () => void;
   isLoading?: boolean;
   disabled?: boolean;
-  provider: 'google' | 'kakao' | 'naver' | 'email' | 'start' | 'phone' | 'facebook' | 'apple' | 'close' | 'back';
+  provider: 'google' | 'kakao' | 'naver' | 'email' | 'start' | 'phone' | 'facebook' | 'apple' | 'close' | 'back' | 'logout';
   currentProvider?: string;
 }
 
@@ -57,6 +57,8 @@ export function LoginButton({
         return styles.closeButton;
       case 'back':
         return styles.backButton;
+      case 'logout':
+        return styles.logoutButton;
       default:
         return styles.googleButton;
     }
@@ -84,6 +86,8 @@ export function LoginButton({
         return styles.closeText;
       case 'back':
         return styles.backText;
+      case 'logout':
+        return styles.logoutText;
       default:
         return styles.googleText;
     }
@@ -111,6 +115,8 @@ export function LoginButton({
         return '×';
       case 'back':
         return '←';
+      case 'logout':
+        return '';
       default:
         return '🔍';
     }
@@ -138,6 +144,8 @@ export function LoginButton({
         return '';
       case 'back':
         return `로그아웃 (${currentProvider?.toUpperCase() || 'UNKNOWN'})`;
+      case 'logout':
+        return `로그아웃 (${currentProvider?.toUpperCase() || 'UNKNOWN'})`;
       default:
         return 'Google';
     }
@@ -162,6 +170,8 @@ export function LoginButton({
       case 'close':
         return '#666';
       case 'back':
+        return '#fff';
+      case 'logout':
         return '#fff';
       default:
         return '#fff';
@@ -324,7 +334,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#e5e7eb',
   },
   logoutButton: {
-    backgroundColor: '#ff6b6b',
+    backgroundColor: '#000',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
   },
   disabledButton: {
     opacity: 0.6,

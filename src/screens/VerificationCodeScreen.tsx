@@ -15,7 +15,6 @@ import {
 import { AuthManager } from '@growgrammers/auth-core';
 import { AuthActions } from '../utils/AuthEventHandler';
 import { Header } from '../components/Header';
-import { MessageDisplay, MessageType } from '../components/MessageDisplay';
 
 interface VerificationCodeScreenProps {
   emailForVerification: string;
@@ -25,6 +24,7 @@ interface VerificationCodeScreenProps {
   setCurrentScreen: (screen: string) => void;
   emailAuthManager: AuthManager;
   refreshSession: () => Promise<void>;
+  onLoginSuccess: () => void;
 }
 
 export function VerificationCodeScreen({ 
@@ -32,16 +32,17 @@ export function VerificationCodeScreen({
   onBack, 
   setCurrentAuthManager, 
   setCurrentProvider, 
-  setCurrentScreen, 
+  setCurrentScreen: _setCurrentScreen, 
   emailAuthManager, 
-  refreshSession 
+  refreshSession,
+  onLoginSuccess
 }: VerificationCodeScreenProps) {
   const [verificationDigits, setVerificationDigits] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
   const [timeLeft, setTimeLeft] = useState(300); // 5분 = 300초
   const [canResend, setCanResend] = useState(false);
   const [message, setMessage] = useState('');
-  const [messageType, setMessageType] = useState<MessageType>('info');
+  const [_messageType, setMessageType] = useState<'info' | 'success' | 'error'>('info');
   const inputRefs = useRef<(TextInput | null)[]>([]);
 
   // 타이머 효과
@@ -112,13 +113,12 @@ export function VerificationCodeScreen({
       if (success) {
         setMessage('✅ 로그인 성공!');
         setMessageType('success');
-        // 메인 화면으로 이동
-        setCurrentScreen('login');
         
-        // 세션 상태 새로고침
+        // 세션 상태 새로고침 후 로그인 완료 화면으로 이동
         setTimeout(async () => {
           console.log('[App] 세션 상태 새로고침 시작');
           await refreshSession();
+          onLoginSuccess();
         }, 100);
       } else {
         setMessage('❌ 인증번호가 올바르지 않습니다.');
@@ -133,41 +133,6 @@ export function VerificationCodeScreen({
     }
   };
 
-  // 계속하기 버튼 처리
-  const handleContinue = async () => {
-    const code = verificationDigits.join('');
-    await handleContinueWithCode(code);
-  };
-
-  // 인증번호 재발송
-  const handleResend = async () => {
-    if (!canResend) return;
-
-    setIsLoading(true);
-    setMessage('');
-
-    try {
-      const emailAuthActions = new AuthActions(emailAuthManager);
-      const success = await emailAuthActions.requestEmailVerification(emailForVerification);
-      
-      if (success) {
-        setMessage('✅ 인증번호가 재발송되었습니다.');
-        setMessageType('success');
-        setTimeLeft(300); // 5분으로 리셋
-        setCanResend(false);
-        setVerificationDigits(['', '', '', '', '', '']);
-      } else {
-        setMessage('❌ 인증번호 재발송에 실패했습니다.');
-        setMessageType('error');
-      }
-    } catch (error) {
-      console.error('인증번호 재발송 오류:', error);
-      setMessage('❌ 인증번호 재발송 중 오류가 발생했습니다.');
-      setMessageType('error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   // 시간 포맷팅
   const formatTime = (seconds: number) => {
@@ -191,35 +156,35 @@ export function VerificationCodeScreen({
       <View style={styles.formContainer}>
         <View style={styles.formContent}>
           <View style={styles.inputSection}>
-            {/* 6자리 인증번호 입력 필드들 */}
-            <View style={styles.digitInputsContainer}>
-              {[0, 1, 2, 3, 4, 5].map((index) => (
-                <TextInput
-                  key={index}
-                  ref={(ref) => {
-                    inputRefs.current[index] = ref;
-                  }}
-                  style={styles.digitInput}
-                  placeholder="0"
+        {/* 6자리 인증번호 입력 필드들 */}
+        <View style={styles.digitInputsContainer}>
+          {[0, 1, 2, 3, 4, 5].map((index) => (
+            <TextInput
+              key={index}
+              ref={(ref) => {
+                inputRefs.current[index] = ref;
+              }}
+              style={styles.digitInput}
+              placeholder="0"
                   placeholderTextColor="#9ca3af"
-                  keyboardType="numeric"
-                  maxLength={1}
-                  textAlign="center"
-                  value={verificationDigits[index]}
-                  onChangeText={(value) => handleDigitChange(index, value)}
+              keyboardType="numeric"
+              maxLength={1}
+              textAlign="center"
+              value={verificationDigits[index]}
+              onChangeText={(value) => handleDigitChange(index, value)}
                   editable={!isLoading && !canResend}
-                />
-              ))}
-            </View>
-
+            />
+          ))}
+        </View>
+        
             {/* 메시지 표시 - 타이머 만료 시에는 표시하지 않음 */}
             {message && !canResend && (
-              <Text style={[
+          <Text style={[
                 styles.messageText,
                 message.includes('✅') ? styles.successMessage : styles.errorMessage
-              ]}>
+          ]}>
                 {message}
-              </Text>
+          </Text>
             )}
             
             {/* 타이머 - 인증번호 요청 성공 후에만 표시 */}
@@ -238,12 +203,12 @@ export function VerificationCodeScreen({
             )}
 
             {/* 문의 링크 */}
-            <TouchableOpacity 
+        <TouchableOpacity 
               style={styles.inquiryButton}
-              onPress={() => Alert.alert('알림', '이메일이 오지 않는 경우 문의는 추후 구현 예정입니다.')}
-            >
+          onPress={() => Alert.alert('알림', '이메일이 오지 않는 경우 문의는 추후 구현 예정입니다.')}
+        >
               <Text style={styles.inquiryText}>인증번호가 안 오나요?</Text>
-            </TouchableOpacity>
+        </TouchableOpacity>
           </View>
         </View>
       </View>
