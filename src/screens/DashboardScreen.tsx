@@ -10,6 +10,7 @@ import { UserInfoCard } from '../components/UserInfoCard';
 import { TokenStatusCard } from '../components/TokenStatusCard';
 import { DebugInfoCard } from '../components/DebugInfoCard';
 import { AuthState } from '../utils/AuthEventHandler';
+//import { Header } from '../components/Header';
 
 interface DashboardScreenProps {
   authState: AuthState;
@@ -24,7 +25,10 @@ export function DashboardScreen({
 }: DashboardScreenProps) {
   return (
     <View style={styles.dashboardContainer}>
-      {/* 헤더 */}
+      {/* 헤더 (뒤로가기 버튼 없음) */}
+      {/* <Header showBackButton={false} />
+       */}
+      {/* 대시보드 헤더 */}
       <View style={styles.dashboardHeader}>
         <Text style={styles.dashboardTitle}>👋 환영합니다!</Text>
         <View style={styles.logoutButtonContainer}>

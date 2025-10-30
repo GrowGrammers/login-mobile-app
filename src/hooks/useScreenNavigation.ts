@@ -44,7 +44,7 @@ export function useScreenNavigation({
   const [currentScreen, setCurrentScreen] = useState<ScreenType>('splash');
   const [currentAuthManager, setCurrentAuthManager] = useState<AuthManager>(emailAuthManager);
   const [currentProvider, setCurrentProvider] = useState<ProviderType>('email');
-  const [emailForVerification, setEmailForVerification] = useState<string>('demo@example.com');
+  const [emailForVerification, setEmailForVerification] = useState<string>('');
 
   // 구글 AuthManager로 전환
   const switchToGoogleAuth = useCallback(() => {
@@ -90,6 +90,8 @@ export function useScreenNavigation({
   // 스플래시로 돌아가기 핸들러
   const handleBackToSplash = useCallback(() => {
     setCurrentScreen('splash');
+    // 로그아웃 시 이메일 상태 초기화
+    setEmailForVerification('');
   }, []);
 
   // 뒤로가기 핸들러

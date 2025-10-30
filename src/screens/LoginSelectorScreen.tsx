@@ -6,6 +6,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Alert, StyleSheet } from 'react-native';
 import { LoginButton } from '../components/LoginButton';
+//import { Header } from '../components/Header';
 
 interface LoginSelectorScreenProps {
   authState: {
@@ -27,10 +28,13 @@ export function LoginSelectorScreen({
 }: LoginSelectorScreenProps) {
   return (
     <View style={styles.loginSelectorContainer}>
+      {/* 헤더 (뒤로가기 버튼 없음) */}
+      {/* <Header showBackButton={false} />
+       */}
       {/* 상단 헤더 영역 (인증 상태 배지 영역) */}
-      <View style={styles.headerArea}>
+      {/* <View style={styles.headerArea}> */}
         {/* 인증 상태 표시 영역 (추후 필요시 구현) */}
-      </View>
+      {/* </View> */}
       
       {/* 바텀시트를 하단에 고정 */}
       <View style={styles.bottomSheetContainer}>
