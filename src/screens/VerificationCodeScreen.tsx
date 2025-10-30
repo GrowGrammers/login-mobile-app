@@ -9,13 +9,13 @@ import {
   Text, 
   TextInput, 
   TouchableOpacity, 
-  Alert, 
   StyleSheet 
 } from 'react-native';
 import { AuthManager } from '@growgrammers/auth-core';
 import { AuthActions } from '../utils/AuthEventHandler';
 import { Header } from '../components/Header';
-import { MessageDisplay, MessageType } from '../components/MessageDisplay';
+import { BottomSheet } from '../components/BottomSheet';
+import { EmailInquiryContent } from '../components/EmailInquiryContent';
 
 interface VerificationCodeScreenProps {
   emailForVerification: string;
@@ -25,6 +25,7 @@ interface VerificationCodeScreenProps {
   setCurrentScreen: (screen: string) => void;
   emailAuthManager: AuthManager;
   refreshSession: () => Promise<void>;
+  onLoginSuccess: () => void;
 }
 
 export function VerificationCodeScreen({ 
@@ -32,16 +33,18 @@ export function VerificationCodeScreen({
   onBack, 
   setCurrentAuthManager, 
   setCurrentProvider, 
-  setCurrentScreen, 
+  setCurrentScreen: _setCurrentScreen, 
   emailAuthManager, 
-  refreshSession 
+  refreshSession,
+  onLoginSuccess
 }: VerificationCodeScreenProps) {
   const [verificationDigits, setVerificationDigits] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
   const [timeLeft, setTimeLeft] = useState(300); // 5분 = 300초
   const [canResend, setCanResend] = useState(false);
   const [message, setMessage] = useState('');
-  const [messageType, setMessageType] = useState<MessageType>('info');
+  const [_messageType, setMessageType] = useState<'info' | 'success' | 'error'>('info');
+  const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
   const inputRefs = useRef<(TextInput | null)[]>([]);
 
   // 타이머 효과
@@ -76,11 +79,18 @@ export function VerificationCodeScreen({
         inputRefs.current[index - 1]?.focus();
       }, 10);
     }
+    
+    // 6자리가 모두 입력되면 자동으로 검증 시도
+    const fullCode = newDigits.join('');
+    if (fullCode.length === 6 && !isLoading && !canResend) {
+      setTimeout(() => {
+        handleContinueWithCode(fullCode);
+      }, 100);
+    }
   };
 
-  // 계속하기 버튼 처리
-  const handleContinue = async () => {
-    const code = verificationDigits.join('');
+  // 인증번호로 로그인 처리 (공통 함수)
+  const handleContinueWithCode = async (code: string) => {
     if (code.length !== 6) {
       setMessage('❌ 6자리 인증번호를 모두 입력해주세요.');
       setMessageType('error');
@@ -105,13 +115,12 @@ export function VerificationCodeScreen({
       if (success) {
         setMessage('✅ 로그인 성공!');
         setMessageType('success');
-        // 메인 화면으로 이동
-        setCurrentScreen('login');
         
-        // 세션 상태 새로고침
+        // 세션 상태 새로고침 후 로그인 완료 화면으로 이동
         setTimeout(async () => {
           console.log('[App] 세션 상태 새로고침 시작');
           await refreshSession();
+          onLoginSuccess();
         }, 100);
       } else {
         setMessage('❌ 인증번호가 올바르지 않습니다.');
@@ -126,23 +135,34 @@ export function VerificationCodeScreen({
     }
   };
 
-  // 인증번호 재발송
-  const handleResend = async () => {
-    if (!canResend) return;
+  // Bottom Sheet 핸들러들
+  const handleEmailInquiry = () => {
+    setIsBottomSheetOpen(true);
+  };
 
-    setIsLoading(true);
+  const handleCloseBottomSheet = () => {
+    setIsBottomSheetOpen(false);
+  };
+
+  const handleResendVerification = async () => {
+    setIsBottomSheetOpen(false);
+    
+    // 인증번호 필드 초기화
+    setVerificationDigits(['', '', '', '', '', '']);
     setMessage('');
-
+    
+    // 타이머 리셋
+    setTimeLeft(300);
+    setCanResend(false);
+    
     try {
+      setIsLoading(true);
       const emailAuthActions = new AuthActions(emailAuthManager);
       const success = await emailAuthActions.requestEmailVerification(emailForVerification);
       
       if (success) {
         setMessage('✅ 인증번호가 재발송되었습니다.');
         setMessageType('success');
-        setTimeLeft(300); // 5분으로 리셋
-        setCanResend(false);
-        setVerificationDigits(['', '', '', '', '', '']);
       } else {
         setMessage('❌ 인증번호 재발송에 실패했습니다.');
         setMessageType('error');
@@ -165,17 +185,19 @@ export function VerificationCodeScreen({
 
   return (
     <View style={styles.container}>
-      <Header onBack={onBack} />
+      {/* 헤더 */}
+      <Header onBack={onBack} showBackButton={true} />
       
-      <View style={styles.verificationHeader}>
-        <Text style={styles.verificationTitle}>인증번호 입력</Text>
-        <Text style={styles.verificationSubtitle}>({emailForVerification})로 인증번호를 보냈습니다</Text>
-        <TouchableOpacity onPress={() => setCurrentScreen('email-input')} style={styles.editButton}>
-          <Text style={styles.editButtonText}>수정</Text>
-        </TouchableOpacity>
+      {/* 콘텐츠 헤더 */}
+      <View style={styles.contentHeader}>
+        <Text style={styles.headerTitle}>인증번호 입력</Text>
+        <Text style={styles.headerSubtitle}>({emailForVerification})로 인증번호를 보냈습니다</Text>
       </View>
       
-      <View style={styles.verificationContent}>
+      {/* 인증번호 입력 영역 */}
+      <View style={styles.formContainer}>
+        <View style={styles.formContent}>
+          <View style={styles.inputSection}>
         {/* 6자리 인증번호 입력 필드들 */}
         <View style={styles.digitInputsContainer}>
           {[0, 1, 2, 3, 4, 5].map((index) => (
@@ -186,59 +208,64 @@ export function VerificationCodeScreen({
               }}
               style={styles.digitInput}
               placeholder="0"
-              placeholderTextColor="#999"
+                  placeholderTextColor="#9ca3af"
               keyboardType="numeric"
               maxLength={1}
               textAlign="center"
               value={verificationDigits[index]}
               onChangeText={(value) => handleDigitChange(index, value)}
-              editable={!isLoading}
+                  editable={!isLoading && !canResend}
             />
           ))}
         </View>
         
-        <TouchableOpacity 
-          style={styles.resendButton}
-          onPress={handleResend}
-          disabled={!canResend || isLoading}
-        >
+            {/* 메시지 표시 - 타이머 만료 시에는 표시하지 않음 */}
+            {message && !canResend && (
           <Text style={[
-            styles.resendButtonText,
-            (!canResend || isLoading) && styles.disabledResendText
+                styles.messageText,
+                message.includes('✅') ? styles.successMessage : styles.errorMessage
           ]}>
-            {canResend ? '인증번호 다시 받기' : `${formatTime(timeLeft)}`}
+                {message}
           </Text>
-        </TouchableOpacity>
-        
-        {/* 메시지 표시 */}
-        <MessageDisplay 
-          message={message} 
-          type={messageType}
-          visible={!!message}
-        />
-        
-        <TouchableOpacity
-          style={[
-            styles.oauthButton,
-            styles.emailOAuthButton,
-            (isLoading || verificationDigits.join('').length !== 6) && styles.disabledButton
-          ]}
-          onPress={handleContinue}
-          disabled={isLoading || verificationDigits.join('').length !== 6}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.oauthButtonText}>
-            {isLoading ? '로그인 중...' : '계속하기'}
-          </Text>
-        </TouchableOpacity>
-        
+            )}
+            
+            {/* 타이머 - 인증번호 요청 성공 후에만 표시 */}
+            {!canResend && (
+              <Text style={styles.timerText}>
+                {formatTime(timeLeft)}
+              </Text>
+            )}
+
+            {/* 타이머 만료 안내 - 타이머가 만료된 경우 항상 표시 */}
+            {canResend && (
+              <View style={styles.expiredContainer}>
+                <Text style={styles.expiredText}>5분이 지나 인증번호가 만료되었어요.</Text>
+                <Text style={styles.expiredText}>아래 '인증번호가 안 오나요?'에서 다시 인증번호를 요청해주세요.</Text>
+              </View>
+            )}
+
+            {/* 문의 링크 */}
         <TouchableOpacity 
-          style={styles.emailNotReceivedButton}
-          onPress={() => Alert.alert('알림', '이메일이 오지 않는 경우 문의는 추후 구현 예정입니다.')}
+              style={styles.inquiryButton}
+          onPress={handleEmailInquiry}
         >
-          <Text style={styles.emailNotReceivedText}>이메일이 안 오나요?</Text>
+              <Text style={styles.inquiryText}>인증번호가 안 오나요?</Text>
         </TouchableOpacity>
+          </View>
+        </View>
       </View>
+
+      {/* Bottom Sheet */}
+      <BottomSheet
+        isOpen={isBottomSheetOpen}
+        onClose={handleCloseBottomSheet}
+        title="확인해보세요."
+      >
+        <EmailInquiryContent
+          onResend={handleResendVerification}
+          isLoading={isLoading}
+        />
+      </BottomSheet>
     </View>
   );
 }
@@ -246,50 +273,47 @@ export function VerificationCodeScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: 'white',
   },
-  // 인증번호 입력 화면 스타일
-  verificationHeader: {
-    paddingTop: 64,
+  // 콘텐츠 헤더 스타일 (웹 앱과 동일)
+  contentHeader: {
     paddingHorizontal: 32,
+    paddingVertical: 64,
     paddingBottom: 16,
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
-  verificationTitle: {
+  headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1a1a1a',
+    color: '#111827',
     marginBottom: 8,
-    textAlign: 'center',
+    textAlign: 'left',
   },
-  verificationSubtitle: {
+  headerSubtitle: {
     fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 8,
+    color: '#6b7280',
+    textAlign: 'left',
   },
-  editButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 0,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-  },
-  editButtonText: {
-    fontSize: 14,
-    color: '#666',
-    textDecorationLine: 'underline',
-  },
-  verificationContent: {
+  // 폼 영역 (웹 앱과 동일)
+  formContainer: {
     flex: 1,
     paddingHorizontal: 32,
-    paddingTop: 32,
-    alignItems: 'center',
+    paddingBottom: 16,
+    marginVertical: 48,
   },
+  formContent: {
+    flex: 1,
+    gap: 24,
+  },
+  inputSection: {
+    alignItems: 'center',
+    gap: 24,
+  },
+  // 인증번호 입력 필드 (웹 앱과 동일)
   digitInputsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 8,
-    marginBottom: 16,
+    gap: 16,
   },
   digitInput: {
     width: 48,
@@ -299,61 +323,52 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     fontSize: 24,
     fontWeight: '600',
-    backgroundColor: '#f9fafb',
+    backgroundColor: 'white',
     textAlign: 'center',
+    color: '#111827',
   },
-  resendButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 0,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+  // 메시지 스타일 (웹 앱과 동일)
+  messageText: {
+    fontSize: 12,
+    textAlign: 'right',
     alignSelf: 'flex-end',
+    paddingRight: 16,
   },
-  resendButtonText: {
-    fontSize: 14,
-    color: '#666',
-    textDecorationLine: 'underline',
+  successMessage: {
+    color: '#16a34a',
   },
-  disabledResendText: {
-    color: '#999',
-    textDecorationLine: 'none',
+  errorMessage: {
+    color: '#dc2626',
   },
-  emailNotReceivedButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 0,
+  // 타이머 스타일 (웹 앱과 동일)
+  timerText: {
+    fontSize: 16,
+    color: '#6b7280',
+    textAlign: 'right',
+    alignSelf: 'flex-end',
+    paddingRight: 16,
+  },
+  // 만료 안내 스타일 (웹 앱과 동일)
+  expiredContainer: {
+    alignSelf: 'flex-end',
+    paddingRight: 16,
+  },
+  expiredText: {
+    fontSize: 12,
+    color: '#dc2626',
+    textAlign: 'right',
+    lineHeight: 16,
+  },
+  // 문의 버튼 스타일 (웹 앱과 동일)
+  inquiryButton: {
+    marginTop: 24,
     paddingVertical: 8,
     paddingHorizontal: 16,
-    marginTop: 8,
   },
-  emailNotReceivedText: {
+  inquiryText: {
     fontSize: 14,
-    color: '#666',
+    color: '#6b7280',
     textDecorationLine: 'underline',
     textAlign: 'center',
-  },
-  // OAuth 버튼 스타일
-  oauthButton: {
-    width: '100%',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    marginVertical: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  emailOAuthButton: {
-    backgroundColor: '#1a1a1a',
-  },
-  oauthButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-    textAlign: 'center',
-  },
-  disabledButton: {
-    opacity: 0.6,
   },
 });

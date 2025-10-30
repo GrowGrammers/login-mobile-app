@@ -46,6 +46,9 @@ export function useAuthManagers(): UseAuthManagersReturn {
             apiBaseUrl: 'https://api.example.com',
             useMockBridge: true,
             enableDebugLogs: true
+            // apiBaseUrl: 'https://your-real-api-server.com', // ← 실제 API 서버 URL
+            // useMockBridge: false, // ← 네이티브 모듈 사용
+            // enableDebugLogs: __DEV__
           }),
           // 구글 AuthManager 초기화
           initializeMockGoogleAuth({
@@ -53,6 +56,10 @@ export function useAuthManagers(): UseAuthManagersReturn {
             googleClientId: 'mock-client-id-for-development',
             useMockBridge: true,
             enableDebugLogs: true
+            // apiBaseUrl: 'https://your-real-api-server.com', // ← 실제 API 서버 URL
+            // googleClientId: 'your-real-google-client-id', // ← 실제 구글 클라이언트 ID
+            // useMockBridge: false, // ← 네이티브 모듈 사용
+            // enableDebugLogs: __DEV__
           }),
           // 카카오 AuthManager 초기화
           initializeMockKakaoAuth({
@@ -60,6 +67,10 @@ export function useAuthManagers(): UseAuthManagersReturn {
             kakaoClientId: 'mock-client-id-for-development',
             useMockBridge: true,
             enableDebugLogs: true
+            // apiBaseUrl: 'https://your-real-api-server.com', // ← 실제 API 서버 URL
+            // kakaoClientId: 'your-real-kakao-client-id', // ← 실제 카카오 클라이언트 ID
+            // useMockBridge: false, // ← 네이티브 모듈 사용
+            // enableDebugLogs: __DEV__
           }),
           // 네이버 AuthManager 초기화
           initializeMockNaverAuth({
@@ -67,6 +78,10 @@ export function useAuthManagers(): UseAuthManagersReturn {
             naverClientId: 'mock-client-id-for-development',
             useMockBridge: true,
             enableDebugLogs: true
+            // apiBaseUrl: 'https://your-real-api-server.com', // ← 실제 API 서버 URL
+            // naverClientId: 'your-real-naver-client-id', // ← 실제 네이버 클라이언트 ID
+            // useMockBridge: false, // ← 네이티브 모듈 사용
+            // enableDebugLogs: __DEV__
           })
         ]);
 

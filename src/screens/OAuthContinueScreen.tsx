@@ -6,6 +6,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { AuthState } from '../utils/AuthEventHandler';
+import { Header } from '../components/Header';
 
 interface OAuthContinueScreenProps {
   provider: 'google' | 'kakao' | 'naver';
@@ -51,18 +52,10 @@ export function OAuthContinueScreen({
 
   return (
     <View style={styles.container}>
-      {/* 헤더 - 뒤로가기 버튼만 */}
-      <View style={styles.oauthHeader}>
-        <TouchableOpacity
-          style={styles.headerBackButton}
-          onPress={onBack}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.headerBackButtonText}>←</Text>
-        </TouchableOpacity>
-        <View style={styles.headerSpacer} />
-      </View>
+      {/* 헤더 */}
+      <Header onBack={onBack} showBackButton={true} />
       
+      {/* 콘텐츠 헤더 */}
       <View style={styles.continueHeader}>
         <Text style={styles.continueTitle}>{config.title}</Text>
         <Text style={styles.continueSubtitle}>{config.subtitle}</Text>
@@ -101,52 +94,26 @@ export function OAuthContinueScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  // OAuth 헤더 스타일
-  oauthHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#f3f4f6',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  headerBackButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'transparent',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerBackButtonText: {
-    fontSize: 24,
-    color: '#666',
-    fontWeight: 'bold',
-  },
-  headerSpacer: {
-    flex: 1,
+    backgroundColor: 'white',
   },
   // OAuth 계속하기 화면 스타일
   continueHeader: {
-    paddingTop: 32,
+    paddingTop: 64,
     paddingHorizontal: 32,
     paddingBottom: 16,
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   continueTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1a1a1a',
+    color: '#111827',
     marginBottom: 8,
-    textAlign: 'center',
+    textAlign: 'left',
   },
   continueSubtitle: {
     fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
+    color: '#6b7280',
+    textAlign: 'left',
   },
   continueContent: {
     flex: 1,

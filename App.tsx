@@ -26,13 +26,16 @@ import {
   AuthActions 
 } from './src';
 import { useAuthManagers } from './src/hooks/useAuthManagers';
-import { useScreenNavigation } from './src/hooks/useScreenNavigation';
+import { useScreenNavigation, ScreenType } from './src/hooks/useScreenNavigation';
 import { DashboardScreen } from './src/screens/DashboardScreen';
 import { LoginSelectorScreen } from './src/screens/LoginSelectorScreen';
 import { OAuthContinueScreen } from './src/screens/OAuthContinueScreen';
 import { SplashScreen } from './src/screens/SplashScreen';
 import { EmailInputScreen } from './src/screens/EmailInputScreen';
 import { VerificationCodeScreen } from './src/screens/VerificationCodeScreen';
+import { LoginCompleteScreen } from './src/screens/LoginCompleteScreen';
+import { ServiceMainScreen } from './src/screens/ServiceMainScreen';
+
 
 
 function App() {
@@ -83,8 +86,6 @@ function AuthApp() {
   );
 }
 
-// 화면 타입 정의
-type ScreenType = 'splash' | 'login' | 'email-input' | 'verification-code' | 'google-continue' | 'kakao-continue' | 'naver-continue';
 
 // 메인 로그인 앱 컴포넌트
 function LoginMobileApp({ 
@@ -111,6 +112,12 @@ function LoginMobileApp({
     handleBack,
     handleEmailLogin,
     handleOAuthContinue,
+    handleLoginSuccess,
+    handleConnectNow,
+    handleLater,
+    handleGoToDashboard,
+    handleGoToLogin,
+    handleBackToLoginComplete,
     switchToGoogleAuth,
     switchToKakaoAuth,
     switchToNaverAuth,
@@ -178,11 +185,17 @@ function LoginMobileApp({
       const success = await authActions.signOut();
       if (success) {
         console.log('[App] 로그아웃 성공');
+        // 웹 앱과 동일하게 스플래시 화면으로 리다이렉트
+        handleBackToSplash();
       } else {
         console.log('[App] 로그아웃 실패');
+        // 실패해도 스플래시 화면으로 이동 (로컬 세션 정리)
+        handleBackToSplash();
       }
     } catch (error) {
       console.error('[App] 로그아웃 예외:', error);
+      // 예외 발생해도 스플래시 화면으로 이동 (로컬 세션 정리)
+      handleBackToSplash();
     }
   };
 
@@ -191,13 +204,49 @@ function LoginMobileApp({
     return <SplashScreen onStartApp={handleStartApp} />;
   }
 
-  // 로그인된 상태 (웹과 유사한 대시보드)
-  if (authState.isLoggedIn) {
+  // 로그인 완료 화면
+  if (currentScreen === 'login-complete') {
+    return (
+      <LoginCompleteScreen
+        onConnectNow={handleConnectNow}
+        onLater={handleLater}
+      />
+    );
+  }
+
+  // 서비스 메인 화면
+  if (currentScreen === 'service-main') {
+    return (
+      <ServiceMainScreen
+        isAuthenticated={authState.isLoggedIn}
+        onGoToDashboard={handleGoToDashboard}
+        onLogout={handleLogout}
+        onGoToLogin={handleGoToLogin}
+        onBackToLoginComplete={handleBackToLoginComplete}
+      />
+    );
+  }
+
+  // 대시보드 화면
+  if (currentScreen === 'dashboard') {
     return (
       <DashboardScreen 
         authState={authState}
         currentProvider={currentProvider}
         onLogout={handleLogout}
+        onBackToLoginComplete={handleBackToLoginComplete}
+      />
+    );
+  }
+
+  // 로그인된 상태 - 기본적으로 로그인 선택 화면 표시 (로그아웃 후 돌아올 곳)
+  if (authState.isLoggedIn && !['login-complete', 'service-main', 'dashboard'].includes(currentScreen)) {
+    return (
+      <DashboardScreen 
+        authState={authState}
+        currentProvider={currentProvider}
+        onLogout={handleLogout}
+        onBackToLoginComplete={handleBackToLoginComplete}
       />
     );
   }
@@ -237,6 +286,7 @@ function LoginMobileApp({
         setCurrentScreen={(screen: string) => setCurrentScreen(screen as ScreenType)}
         emailAuthManager={emailAuthManager}
         refreshSession={refreshSession}
+        onLoginSuccess={handleLoginSuccess}
       />
     );
   }
@@ -292,7 +342,7 @@ function LoginMobileApp({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: 'white',
   },
   center: {
     justifyContent: 'center',

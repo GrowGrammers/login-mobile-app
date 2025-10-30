@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { LoginButton } from '../components/LoginButton';
 
 interface SplashScreenProps {
@@ -15,7 +15,6 @@ export function SplashScreen({ onStartApp }: SplashScreenProps) {
   return (
     <View style={styles.container}>
       <View style={styles.splashContainer}>
-        <Text style={styles.splashTitle}>Login</Text>
         <View style={styles.splashButtonContainer}>
           <LoginButton 
             provider="start"
@@ -31,19 +30,13 @@ export function SplashScreen({ onStartApp }: SplashScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: 'white',
   },
   splashContainer: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    padding: 20,
-  },
-  splashTitle: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-    marginBottom: 40,
+    padding: 32,
   },
   splashButtonContainer: {
     width: '100%',
