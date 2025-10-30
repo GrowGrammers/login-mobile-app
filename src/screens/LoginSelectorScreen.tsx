@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { View, Text, TouchableOpacity, Alert, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, StyleSheet, Linking } from 'react-native';
 import { LoginButton } from '../components/LoginButton';
 //import { Header } from '../components/Header';
 
@@ -26,6 +26,19 @@ export function LoginSelectorScreen({
   onOAuthContinue,
   onGoogleLogin
 }: LoginSelectorScreenProps) {
+  // 이용약관 링크 처리
+  const handleTermsPress = async () => {
+    const url = 'https://amazing-jelly-42b.notion.site/27fbb18df73c80aabc58dbf959588677?source=copy_link';
+    
+    try {
+      // canOpenURL이 false를 반환할 수 있지만, 실제로는 열리므로 바로 시도
+      await Linking.openURL(url);
+    } catch (error) {
+      console.error('이용약관 링크 열기 오류:', error);
+      Alert.alert('오류', '링크를 여는 중 오류가 발생했습니다.');
+    }
+  };
+
   return (
     <View style={styles.loginSelectorContainer}>
       {/* 헤더 (뒤로가기 버튼 없음) */}
@@ -99,10 +112,10 @@ export function LoginSelectorScreen({
             </TouchableOpacity>
             
             <TouchableOpacity 
-              onPress={() => Alert.alert('알림', '이용약관에 연결될 예정입니다.')}
+              onPress={handleTermsPress}
             >
               <Text style={styles.termsText}>
-                계속하면 [서비스명]의 이용 약관에 동의하는 것 입니다.
+                계속하면 [서비스명]의 <Text style={styles.termsLink}>이용 약관</Text>에 동의하는 것 입니다.
               </Text>
             </TouchableOpacity>
           </View>
@@ -198,5 +211,10 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     marginTop: 8,
     marginBottom: 8,
+  },
+  termsLink: {
+    color: '#6b7280',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
 });
