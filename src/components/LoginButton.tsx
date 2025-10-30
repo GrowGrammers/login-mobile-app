@@ -9,8 +9,16 @@ import {
   Text,
   StyleSheet,
   ActivityIndicator,
-  View
+  View,
+  Image
 } from 'react-native';
+
+// 소셜 로그인 아이콘 이미지 import
+const socialIcons = {
+  kakao: require('../assets/images/kakao_ic.png'),
+  naver: require('../assets/images/naver_ic.png'),
+  google: require('../assets/images/google_ic.png'),
+};
 
 interface LoginButtonProps {
   onPress: () => void;
@@ -142,11 +150,11 @@ export function LoginButton({
       case 'kakao':
         return '#000';
       case 'email':
-        return '#fff';
+        return '#111827';
       case 'start':
         return '#fff';
       case 'phone':
-        return '#000';
+        return '#fff';
       case 'facebook':
         return '#000';
       case 'apple':
@@ -154,7 +162,7 @@ export function LoginButton({
       case 'close':
         return '#666';
       case 'back':
-        return '#666';
+        return '#fff';
       default:
         return '#fff';
     }
@@ -172,9 +180,22 @@ export function LoginButton({
         disabled={disabled || isLoading}
         activeOpacity={0.8}
       >
-        <Text style={styles.socialIcon}>
-          {getIcon()}
-        </Text>
+        {isLoading ? (
+          <ActivityIndicator size="small" color="#666" />
+        ) : (
+          // 이미지가 있는 소셜 버튼은 이미지 사용, 없으면 이모지 사용
+          socialIcons[provider as keyof typeof socialIcons] ? (
+            <Image 
+              source={socialIcons[provider as keyof typeof socialIcons]} 
+              style={styles.socialIconImage}
+              resizeMode="contain"
+            />
+          ) : (
+            <Text style={styles.socialIcon}>
+              {getIcon()}
+            </Text>
+          )
+        )}
       </TouchableOpacity>
     );
   }
@@ -300,7 +321,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#03c75a',
   },
   emailButton: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#e5e7eb',
   },
   logoutButton: {
     backgroundColor: '#ff6b6b',
@@ -334,7 +355,7 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   emailText: {
-    color: '#000',
+    color: '#111827',
   },
   logoutText: {
     color: '#fff',
@@ -346,7 +367,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a1a1a',
   },
   phoneButton: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#111827',
   },
   socialButton: {
     backgroundColor: 'white',
@@ -374,9 +395,7 @@ const styles = StyleSheet.create({
     marginVertical: 0,
   },
   backButton: {
-    backgroundColor: '#f3f4f6',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
+    backgroundColor: '#3b82f6',
   },
   startText: {
     color: '#fff',
@@ -391,14 +410,18 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   backText: {
-    color: '#666',
+    color: '#fff',
   },
   socialIcon: {
     fontSize: 20,
   },
+  socialIconImage: {
+    width: 32,
+    height: 32,
+  },
   closeIcon: {
     fontSize: 20,
-    color: '#666',
+    color: '#fff',
   },
 });
 

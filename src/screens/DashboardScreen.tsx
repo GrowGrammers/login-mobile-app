@@ -61,20 +61,20 @@ export function DashboardScreen({
 const styles = StyleSheet.create({
   dashboardContainer: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: 'white',
   },
   dashboardHeader: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#f9fafb',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
     paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingVertical: 24,
     alignItems: 'center',
   },
   dashboardTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1a1a1a',
+    color: '#111827',
     marginBottom: 16,
   },
   logoutButtonContainer: {
@@ -85,5 +85,8 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 24,
     paddingTop: 24,
+    maxWidth: 768,
+    alignSelf: 'center',
+    width: '100%',
   },
 });
