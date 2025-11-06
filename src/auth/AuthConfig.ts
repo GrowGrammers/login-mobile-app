@@ -874,6 +874,8 @@ export class ReactNativeAuthFactory {
     this.bridge = null;
     this.emailAuthManager = null;
     this.googleAuthManager = null;
+    this.kakaoAuthManager = null;  
+    this.naverAuthManager = null;  
   }
 }
 

@@ -5,7 +5,7 @@
  * @format
  */
 
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { 
   StatusBar, 
   StyleSheet, 
@@ -26,15 +26,9 @@ import {
   AuthActions 
 } from './src';
 import { useAuthManagers } from './src/hooks/useAuthManagers';
-import { useScreenNavigation, ScreenType } from './src/hooks/useScreenNavigation';
-import { DashboardScreen } from './src/screens/DashboardScreen';
-import { LoginSelectorScreen } from './src/screens/LoginSelectorScreen';
-import { OAuthContinueScreen } from './src/screens/OAuthContinueScreen';
-import { SplashScreen } from './src/screens/SplashScreen';
-import { EmailInputScreen } from './src/screens/EmailInputScreen';
-import { VerificationCodeScreen } from './src/screens/VerificationCodeScreen';
-import { LoginCompleteScreen } from './src/screens/LoginCompleteScreen';
-import { ServiceMainScreen } from './src/screens/ServiceMainScreen';
+import { useScreenNavigation } from './src/hooks/useScreenNavigation';
+import { useAuthHandlers } from './src/hooks/useAuthHandlers';
+import { AppNavigator } from './src/navigation/AppNavigator';
 
 
 
@@ -105,7 +99,6 @@ function LoginMobileApp({
     currentAuthManager,
     currentProvider,
     emailForVerification,
-    setCurrentScreen,
     setEmailForVerification,
     handleStartApp,
     handleBackToSplash,
@@ -121,6 +114,8 @@ function LoginMobileApp({
     switchToGoogleAuth,
     switchToKakaoAuth,
     switchToNaverAuth,
+    setNavigationRef,
+    onNavigationStateChange,
   } = useScreenNavigation({
     emailAuthManager,
     googleAuthManager,
@@ -129,212 +124,91 @@ function LoginMobileApp({
   });
   
   const { authState, clearError, refreshSession } = useAuthState(currentAuthManager);
-  
-  // AuthActions 인스턴스 생성 (현재 AuthManager 기준)
-  const authActions = new AuthActions(currentAuthManager);
 
   console.log('[App] 현재 인증 상태:', authState);
   console.log('[App] 현재 화면:', currentScreen);
 
-  // 구글 로그인 핸들러 (계속하기 화면으로 이동)
-  const handleGoogleLogin = () => {
-    handleOAuthContinue('google');
-  };
+  // AuthActions 팩토리 함수: 항상 최신 currentAuthManager로 인스턴스 생성
+  const getAuthActions = useCallback(() => {
+    return new AuthActions(currentAuthManager);
+  }, [currentAuthManager]);
 
-  // OAuth 계속하기에서 실제 로그인 시도
-  const handleOAuthLogin = async (provider: 'google' | 'kakao' | 'naver') => {
-    console.log(`[App] ${provider} 로그인 시작`);
-    
-    // 해당 AuthManager로 전환
-    if (provider === 'google') {
-      switchToGoogleAuth();
-    } else if (provider === 'kakao') {
-      switchToKakaoAuth();
-    } else if (provider === 'naver') {
-      switchToNaverAuth();
-    }
-    
-    clearError();
-    
-    try {
-      let oauthAuthActions;
-      if (provider === 'google') {
-        oauthAuthActions = new AuthActions(googleAuthManager);
-      } else if (provider === 'kakao') {
-        oauthAuthActions = new AuthActions(kakaoAuthManager);
-      } else {
-        oauthAuthActions = new AuthActions(naverAuthManager);
-      }
-      
-      const success = await oauthAuthActions.startOAuth(provider);
-      if (success) {
-        console.log(`[App] ${provider} 로그인 시작 성공`);
-      } else {
-        console.log(`[App] ${provider} 로그인 시작 실패`);
-      }
-    } catch (error) {
-      console.error(`[App] ${provider} 로그인 예외:`, error);
-    }
-  };
+  // 인증 핸들러 훅 사용
+  const { handleOAuthLogin, handleLogout } = useAuthHandlers({
+    emailAuthManager,
+    googleAuthManager,
+    kakaoAuthManager,
+    naverAuthManager,
+    switchToGoogleAuth,
+    switchToKakaoAuth,
+    switchToNaverAuth,
+    clearError,
+    handleBackToSplash,
+    getAuthActions,
+  });
 
-  // 로그아웃 핸들러
-  const handleLogout = async () => {
-    console.log('[App] 로그아웃 시작');
-    
-    try {
-      const success = await authActions.signOut();
-      if (success) {
-        console.log('[App] 로그아웃 성공');
-        // 웹 앱과 동일하게 스플래시 화면으로 리다이렉트
-        handleBackToSplash();
-      } else {
-        console.log('[App] 로그아웃 실패');
-        // 실패해도 스플래시 화면으로 이동 (로컬 세션 정리)
-        handleBackToSplash();
-      }
-    } catch (error) {
-      console.error('[App] 로그아웃 예외:', error);
-      // 예외 발생해도 스플래시 화면으로 이동 (로컬 세션 정리)
-      handleBackToSplash();
-    }
-  };
+  // navigationHandlers 객체 메모이제이션 (불필요한 리렌더 방지)
+  const navigationHandlers = useMemo(() => ({
+    handleStartApp,
+    handleBackToSplash,
+    handleBack,
+    handleEmailLogin,
+    handleOAuthContinue,
+    handleLoginSuccess,
+    handleConnectNow,
+    handleLater,
+    handleGoToDashboard,
+    handleGoToLogin,
+    handleBackToLoginComplete,
+    handleOAuthLogin,
+    handleLogout,
+  }), [
+    handleStartApp,
+    handleBackToSplash,
+    handleBack,
+    handleEmailLogin,
+    handleOAuthContinue,
+    handleLoginSuccess,
+    handleConnectNow,
+    handleLater,
+    handleGoToDashboard,
+    handleGoToLogin,
+    handleBackToLoginComplete,
+    handleOAuthLogin,
+    handleLogout,
+  ]);
 
-  // 스플래시 화면
-  if (currentScreen === 'splash') {
-    return <SplashScreen onStartApp={handleStartApp} />;
-  }
+  // navigationState 객체 메모이제이션 (불필요한 리렌더 방지)
+  const navigationState = useMemo(() => ({
+    currentAuthManager,
+    currentProvider,
+    emailForVerification,
+    setEmailForVerification,
+    authState,
+    clearError,
+    refreshSession,
+  }), [
+    currentAuthManager,
+    currentProvider,
+    emailForVerification,
+    setEmailForVerification,
+    authState,
+    clearError,
+    refreshSession,
+  ]);
 
-  // 로그인 완료 화면
-  if (currentScreen === 'login-complete') {
-    return (
-      <LoginCompleteScreen
-        onConnectNow={handleConnectNow}
-        onLater={handleLater}
-      />
-    );
-  }
-
-  // 서비스 메인 화면
-  if (currentScreen === 'service-main') {
-    return (
-      <ServiceMainScreen
-        isAuthenticated={authState.isLoggedIn}
-        onGoToDashboard={handleGoToDashboard}
-        onLogout={handleLogout}
-        onGoToLogin={handleGoToLogin}
-        onBackToLoginComplete={handleBackToLoginComplete}
-      />
-    );
-  }
-
-  // 대시보드 화면
-  if (currentScreen === 'dashboard') {
-    return (
-      <DashboardScreen 
-        authState={authState}
-        currentProvider={currentProvider}
-        onLogout={handleLogout}
-        onBackToLoginComplete={handleBackToLoginComplete}
-      />
-    );
-  }
-
-  // 로그인된 상태 - 기본적으로 로그인 선택 화면 표시 (로그아웃 후 돌아올 곳)
-  if (authState.isLoggedIn && !['login-complete', 'service-main', 'dashboard'].includes(currentScreen)) {
-    return (
-      <DashboardScreen 
-        authState={authState}
-        currentProvider={currentProvider}
-        onLogout={handleLogout}
-        onBackToLoginComplete={handleBackToLoginComplete}
-      />
-    );
-  }
-
-  // 이메일 입력 화면 (웹과 동일한 스타일)
-  if (currentScreen === 'email-input') {
-    return (
-      <EmailInputScreen
-        authState={authState}
-        emailForVerification={emailForVerification}
-        onBack={handleBack}
-        onEmailChange={setEmailForVerification}
-        onRequestVerification={async () => {
-          // 이메일 인증번호 요청
-          const emailAuthActions = new AuthActions(emailAuthManager);
-          const success = await emailAuthActions.requestEmailVerification(emailForVerification);
-          if (success) {
-            setCurrentScreen('verification-code');
-          }
-        }}
-      />
-    );
-  }
-
-  // 인증번호 입력 화면 (웹과 동일한 스타일)
-  if (currentScreen === 'verification-code') {
-    return (
-      <VerificationCodeScreen
-        emailForVerification={emailForVerification}
-        onBack={handleBack}
-        setCurrentAuthManager={(_manager: AuthManager) => {
-          // AuthManager 전환 로직은 useScreenNavigation에서 처리
-        }}
-        setCurrentProvider={(_provider: 'email' | 'google' | 'kakao' | 'naver') => {
-          // Provider 전환 로직은 useScreenNavigation에서 처리
-        }}
-        setCurrentScreen={(screen: string) => setCurrentScreen(screen as ScreenType)}
-        emailAuthManager={emailAuthManager}
-        refreshSession={refreshSession}
-        onLoginSuccess={handleLoginSuccess}
-      />
-    );
-  }
-
-  // Google 계속하기 화면
-  if (currentScreen === 'google-continue') {
-    return (
-      <OAuthContinueScreen
-        provider="google"
-        authState={authState}
-        onBack={handleBack}
-        onOAuthLogin={handleOAuthLogin}
-      />
-    );
-  }
-
-  // Kakao 계속하기 화면
-  if (currentScreen === 'kakao-continue') {
-    return (
-      <OAuthContinueScreen
-        provider="kakao"
-        authState={authState}
-        onBack={handleBack}
-        onOAuthLogin={handleOAuthLogin}
-      />
-    );
-  }
-
-  // Naver 계속하기 화면
-  if (currentScreen === 'naver-continue') {
-    return (
-      <OAuthContinueScreen
-        provider="naver"
-        authState={authState}
-        onBack={handleBack}
-        onOAuthLogin={handleOAuthLogin}
-      />
-    );
-  }
-
-  // 로그인 방식 선택 화면 (웹과 유사한 스타일)
+  // React Navigation으로 전환 - 조건부 렌더링 제거
   return (
-    <LoginSelectorScreen
-      authState={authState}
-      onBackToSplash={handleBackToSplash}
-      onEmailLogin={handleEmailLogin}
-      onOAuthContinue={handleOAuthContinue}
-      onGoogleLogin={handleGoogleLogin}
+    <AppNavigator
+      emailAuthManager={emailAuthManager}
+      googleAuthManager={googleAuthManager}
+      kakaoAuthManager={kakaoAuthManager}
+      naverAuthManager={naverAuthManager}
+      navigationHandlers={navigationHandlers}
+      navigationState={navigationState}
+      initialRouteName="Splash"
+      setNavigationRef={setNavigationRef}
+      onNavigationStateChange={onNavigationStateChange}
     />
   );
 }

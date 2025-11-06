@@ -64,9 +64,9 @@ export function useAuthState(authManager: AuthManager | null): {
 } {
   const [authState, setAuthState] = useState<AuthState>(initialAuthState);
   const bridgeRef = useRef<ReactNativeBridge | null>(null);
-  const loginSuccessTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const autoRefreshTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const autoStopTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const loginSuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // === 이벤트 핸들러 ===
   
