@@ -3,11 +3,13 @@
  * 기존 화면 플로우를 유지하면서 React Navigation으로 전환
  */
 
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useEffect } from 'react';
+import { BackHandler, Alert, Platform } from 'react-native';
 import { NavigationContainer, NavigationContainerRef, NavigationState, ParamListBase } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { AuthManager } from '@growgrammers/auth-core';
 import type { RootStackParamList } from './types';
+import type { AuthState } from '../utils/AuthEventHandler';
 
 // Screen Components
 import { SplashScreen } from '../screens/SplashScreen';
@@ -51,7 +53,7 @@ export interface AppNavigatorProps {
     currentProvider: 'email' | 'google' | 'kakao' | 'naver';
     emailForVerification: string;
     setEmailForVerification: (email: string) => void;
-    authState: any;
+    authState: AuthState;
     clearError: () => void;
     refreshSession: () => Promise<void>;
   };
@@ -119,6 +121,50 @@ export function AppNavigator({
   const emptySetCurrentScreen = useCallback((_screen: string) => {
     // React Navigation으로 자동 처리
   }, []);
+
+  // Android 하드웨어 뒤로가기 처리
+  useEffect(() => {
+    if (Platform.OS !== 'android') {
+      return;
+    }
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (!navigationRef.current?.isReady()) {
+        return false; // 기본 동작 허용
+      }
+
+      // 네비게이션 스택에 이전 화면이 있으면 기본 뒤로가기 동작
+      if (navigationRef.current.canGoBack()) {
+        navigationHandlers.handleBack();
+        return true; // 기본 동작 차단
+      }
+
+      // 루트 스크린에서 뒤로가기 시 Alert 확인 후 Splash로 이동
+      Alert.alert(
+        '앱 종료',
+        '앱을 종료하시겠습니까?',
+        [
+          {
+            text: '취소',
+            style: 'cancel',
+            onPress: () => {},
+          },
+          {
+            text: '종료',
+            style: 'destructive',
+            onPress: () => {
+              navigationHandlers.handleBackToSplash();
+            },
+          },
+        ],
+        { cancelable: true }
+      );
+
+      return true; // 기본 동작 차단
+    });
+
+    return () => backHandler.remove();
+  }, [navigationHandlers]);
 
   return (
     <NavigationContainer<RootStackParamList>
