@@ -3,8 +3,8 @@
  * 기존 화면 플로우를 유지하면서 React Navigation으로 전환
  */
 
-import React, { useRef } from 'react';
-import { NavigationContainer, NavigationContainerRef, NavigationState } from '@react-navigation/native';
+import React, { useRef, useCallback } from 'react';
+import { NavigationContainer, NavigationContainerRef, NavigationState, ParamListBase } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { AuthManager } from '@growgrammers/auth-core';
 import type { RootStackParamList } from './types';
@@ -77,6 +77,49 @@ export function AppNavigator({
 }: AppNavigatorProps) {
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList> | null>(null);
 
+  // onStateChange 핸들러 래퍼 (타입 호환성 처리)
+  // NavigationContainer의 onStateChange는 일반적인 NavigationState를 기대하므로
+  // 타입 단언을 통해 RootStackParamList로 변환
+  const handleStateChange = useCallback((
+    state: NavigationState<ParamListBase> | undefined
+  ) => {
+    if (onNavigationStateChange) {
+      // NavigationContainer가 RootStackParamList로 타입화되어 있으므로
+      // 실제로는 RootStackParamList 타입이지만 타입 시스템이 이를 인식하지 못함
+      onNavigationStateChange(state as NavigationState<RootStackParamList> | undefined);
+    }
+  }, [onNavigationStateChange]);
+
+  // inline handler 메모이제이션 (불필요한 리렌더 방지)
+  const handleGoogleLogin = useCallback(() => {
+    navigationHandlers.handleOAuthContinue('google');
+  }, [navigationHandlers]);
+
+  // EmailInputScreen의 onRequestVerification 핸들러 메모이제이션
+  const handleRequestVerification = useCallback(async (navigation: any) => {
+    const { AuthActions } = await import('../utils/AuthEventHandler');
+    const emailAuthActions = new AuthActions(emailAuthManager);
+    const success = await emailAuthActions.requestEmailVerification(
+      navigationState.emailForVerification
+    );
+    if (success) {
+      navigation.navigate('VerificationCode');
+    }
+  }, [emailAuthManager, navigationState.emailForVerification]);
+
+  // VerificationCodeScreen의 빈 핸들러들 메모이제이션 (불필요한 리렌더 방지)
+  const emptySetCurrentAuthManager = useCallback((_manager: AuthManager) => {
+    // AuthManager 전환 로직은 useScreenNavigation에서 처리
+  }, []);
+  
+  const emptySetCurrentProvider = useCallback((_provider: 'email' | 'google' | 'kakao' | 'naver') => {
+    // Provider 전환 로직은 useScreenNavigation에서 처리
+  }, []);
+  
+  const emptySetCurrentScreen = useCallback((_screen: string) => {
+    // React Navigation으로 자동 처리
+  }, []);
+
   return (
     <NavigationContainer<RootStackParamList>
       ref={(ref) => {
@@ -85,7 +128,7 @@ export function AppNavigator({
           setNavigationRef(ref);
         }
       }}
-      onStateChange={onNavigationStateChange}
+      onStateChange={handleStateChange}
     >
       <Stack.Navigator
         initialRouteName={initialRouteName}
@@ -111,7 +154,7 @@ export function AppNavigator({
               onBackToSplash={navigationHandlers.handleBackToSplash}
               onEmailLogin={navigationHandlers.handleEmailLogin}
               onOAuthContinue={navigationHandlers.handleOAuthContinue}
-              onGoogleLogin={() => navigationHandlers.handleOAuthContinue('google')}
+              onGoogleLogin={handleGoogleLogin}
             />
           )}
         </Stack.Screen>
@@ -124,16 +167,7 @@ export function AppNavigator({
               emailForVerification={navigationState.emailForVerification}
               onBack={navigationHandlers.handleBack}
               onEmailChange={navigationState.setEmailForVerification}
-              onRequestVerification={async () => {
-                const { AuthActions } = await import('../utils/AuthEventHandler');
-                const emailAuthActions = new AuthActions(emailAuthManager);
-                const success = await emailAuthActions.requestEmailVerification(
-                  navigationState.emailForVerification
-                );
-                if (success) {
-                  props.navigation.navigate('VerificationCode');
-                }
-              }}
+              onRequestVerification={() => handleRequestVerification(props.navigation)}
             />
           )}
         </Stack.Screen>
@@ -144,15 +178,9 @@ export function AppNavigator({
               {...props}
               emailForVerification={navigationState.emailForVerification}
               onBack={navigationHandlers.handleBack}
-              setCurrentAuthManager={(_manager: AuthManager) => {
-                // AuthManager 전환 로직은 useScreenNavigation에서 처리
-              }}
-              setCurrentProvider={(_provider: 'email' | 'google' | 'kakao' | 'naver') => {
-                // Provider 전환 로직은 useScreenNavigation에서 처리
-              }}
-              setCurrentScreen={(_screen: string) => {
-                // React Navigation으로 자동 처리
-              }}
+              setCurrentAuthManager={emptySetCurrentAuthManager}
+              setCurrentProvider={emptySetCurrentProvider}
+              setCurrentScreen={emptySetCurrentScreen}
               emailAuthManager={emailAuthManager}
               refreshSession={navigationState.refreshSession}
               onLoginSuccess={navigationHandlers.handleLoginSuccess}

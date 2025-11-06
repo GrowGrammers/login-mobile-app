@@ -5,7 +5,7 @@
  * @format
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { 
   StatusBar, 
   StyleSheet, 
@@ -147,6 +147,56 @@ function LoginMobileApp({
     getAuthActions,
   });
 
+  // navigationHandlers 객체 메모이제이션 (불필요한 리렌더 방지)
+  const navigationHandlers = useMemo(() => ({
+    handleStartApp,
+    handleBackToSplash,
+    handleBack,
+    handleEmailLogin,
+    handleOAuthContinue,
+    handleLoginSuccess,
+    handleConnectNow,
+    handleLater,
+    handleGoToDashboard,
+    handleGoToLogin,
+    handleBackToLoginComplete,
+    handleOAuthLogin,
+    handleLogout,
+  }), [
+    handleStartApp,
+    handleBackToSplash,
+    handleBack,
+    handleEmailLogin,
+    handleOAuthContinue,
+    handleLoginSuccess,
+    handleConnectNow,
+    handleLater,
+    handleGoToDashboard,
+    handleGoToLogin,
+    handleBackToLoginComplete,
+    handleOAuthLogin,
+    handleLogout,
+  ]);
+
+  // navigationState 객체 메모이제이션 (불필요한 리렌더 방지)
+  const navigationState = useMemo(() => ({
+    currentAuthManager,
+    currentProvider,
+    emailForVerification,
+    setEmailForVerification,
+    authState,
+    clearError,
+    refreshSession,
+  }), [
+    currentAuthManager,
+    currentProvider,
+    emailForVerification,
+    setEmailForVerification,
+    authState,
+    clearError,
+    refreshSession,
+  ]);
+
   // React Navigation으로 전환 - 조건부 렌더링 제거
   return (
     <AppNavigator
@@ -154,30 +204,8 @@ function LoginMobileApp({
       googleAuthManager={googleAuthManager}
       kakaoAuthManager={kakaoAuthManager}
       naverAuthManager={naverAuthManager}
-      navigationHandlers={{
-        handleStartApp,
-        handleBackToSplash,
-        handleBack,
-        handleEmailLogin,
-        handleOAuthContinue,
-        handleLoginSuccess,
-        handleConnectNow,
-        handleLater,
-        handleGoToDashboard,
-        handleGoToLogin,
-        handleBackToLoginComplete,
-        handleOAuthLogin,
-        handleLogout,
-      }}
-      navigationState={{
-        currentAuthManager,
-        currentProvider,
-        emailForVerification,
-        setEmailForVerification,
-        authState,
-        clearError,
-        refreshSession,
-      }}
+      navigationHandlers={navigationHandlers}
+      navigationState={navigationState}
       initialRouteName="Splash"
       setNavigationRef={setNavigationRef}
       onNavigationStateChange={onNavigationStateChange}
