@@ -4,7 +4,7 @@
  */
 
 import React, { useRef } from 'react';
-import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
+import { NavigationContainer, NavigationContainerRef, NavigationState } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { AuthManager } from '@growgrammers/auth-core';
 import type { RootStackParamList } from './types';
@@ -60,6 +60,8 @@ export interface AppNavigatorProps {
   initialRouteName?: keyof RootStackParamList;
   // Navigation ref setter (useScreenNavigation과 통합)
   setNavigationRef?: (navigation: NavigationContainerRef<RootStackParamList> | null) => void;
+  // Navigation state change handler (공식 onStateChange prop 사용)
+  onNavigationStateChange?: (state: NavigationState<RootStackParamList> | undefined) => void;
 }
 
 export function AppNavigator({
@@ -71,6 +73,7 @@ export function AppNavigator({
   navigationState,
   initialRouteName = 'Splash',
   setNavigationRef,
+  onNavigationStateChange,
 }: AppNavigatorProps) {
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList> | null>(null);
 
@@ -82,6 +85,7 @@ export function AppNavigator({
           setNavigationRef(ref);
         }
       }}
+      onStateChange={onNavigationStateChange}
     >
       <Stack.Navigator
         initialRouteName={initialRouteName}

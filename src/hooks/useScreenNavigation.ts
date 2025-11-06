@@ -44,6 +44,7 @@ interface UseScreenNavigationReturn {
   switchToNaverAuth: () => void;
   // React Navigation 통합
   setNavigationRef: (navigation: NavigationContainerRef<RootStackParamList> | null) => void;
+  onNavigationStateChange: (state: NavigationState<RootStackParamList> | undefined) => void;
 }
 
 export function useScreenNavigation({
@@ -59,7 +60,6 @@ export function useScreenNavigation({
   
   // React Navigation ref
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList> | null>(null);
-  const unsubscribeRef = useRef<(() => void) | null>(null);
   
   // 현재 AuthManager의 인증 상태 감시
   const { authState } = useAuthState(currentAuthManager);
@@ -84,7 +84,7 @@ export function useScreenNavigation({
     
     if (navigationRef.current?.isReady()) {
       // React Navigation의 애니메이션이 완료될 때까지 상태 업데이트를 지연
-      // 상태는 위의 state 이벤트 리스너에서 자동으로 동기화됩니다
+      // 상태는 NavigationContainer의 onStateChange에서 자동으로 동기화됩니다
       navigationRef.current.navigate(routeName as any);
     } else {
       // Navigation이 준비되지 않았을 때만 직접 상태 업데이트
@@ -92,15 +92,6 @@ export function useScreenNavigation({
     }
   }, []);
 
-  // 컴포넌트 언마운트 시 리스너 정리
-  useEffect(() => {
-    return () => {
-      if (unsubscribeRef.current) {
-        unsubscribeRef.current();
-        unsubscribeRef.current = null;
-      }
-    };
-  }, []);
 
   // 소셜 로그인 성공 시 LoginComplete 화면으로 자동 이동 (한 번만)
   useEffect(() => {
@@ -149,31 +140,21 @@ export function useScreenNavigation({
     }
   }, [currentProvider, naverAuthManager]);
 
-  // React Navigation ref 설정 및 상태 동기화 리스너 등록
+  // React Navigation ref 설정 (단순화)
   const setNavigationRef = useCallback((navigation: NavigationContainerRef<RootStackParamList> | null) => {
-    // 기존 리스너 제거
-    if (unsubscribeRef.current) {
-      unsubscribeRef.current();
-      unsubscribeRef.current = null;
-    }
-    
     navigationRef.current = navigation;
-    
-    // 새로운 리스너 등록
-    if (navigation) {
-      const unsubscribe = navigation.addListener('state', (e) => {
-        const state = e.data.state as NavigationState<RootStackParamList> | undefined;
-        if (state) {
-          const route = state.routes[state.index];
-          if (route) {
-            const screen = routeNameToScreenType[route.name as keyof RootStackParamList];
-            if (screen) {
-              setCurrentScreen(screen);
-            }
-          }
+  }, []);
+
+  // 네비게이션 상태 변경 핸들러 (NavigationContainer의 onStateChange에서 호출)
+  const onNavigationStateChange = useCallback((state: NavigationState<RootStackParamList> | undefined) => {
+    if (state) {
+      const route = state.routes[state.index];
+      if (route) {
+        const screen = routeNameToScreenType[route.name as keyof RootStackParamList];
+        if (screen) {
+          setCurrentScreen(screen);
         }
-      });
-      unsubscribeRef.current = unsubscribe;
+      }
     }
   }, [routeNameToScreenType]);
 
@@ -270,5 +251,6 @@ export function useScreenNavigation({
     switchToKakaoAuth,
     switchToNaverAuth,
     setNavigationRef,
+    onNavigationStateChange,
   };
 }

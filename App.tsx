@@ -115,6 +115,7 @@ function LoginMobileApp({
     switchToKakaoAuth,
     switchToNaverAuth,
     setNavigationRef,
+    onNavigationStateChange,
   } = useScreenNavigation({
     emailAuthManager,
     googleAuthManager,
@@ -177,6 +178,7 @@ function LoginMobileApp({
       }}
       initialRouteName="Splash"
       setNavigationRef={setNavigationRef}
+      onNavigationStateChange={onNavigationStateChange}
     />
   );
 }
