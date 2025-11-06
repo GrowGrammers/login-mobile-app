@@ -17,7 +17,7 @@ interface UseAuthHandlersProps {
   switchToNaverAuth: () => void;
   clearError: () => void;
   handleBackToSplash: () => void;
-  authActions: AuthActions;
+  getAuthActions: () => AuthActions;
 }
 
 interface UseAuthHandlersReturn {
@@ -38,7 +38,7 @@ export function useAuthHandlers({
   switchToNaverAuth,
   clearError,
   handleBackToSplash,
-  authActions,
+  getAuthActions,
 }: UseAuthHandlersProps): UseAuthHandlersReturn {
   // OAuth 계속하기에서 실제 로그인 시도
   const handleOAuthLogin = useCallback(async (provider: 'google' | 'kakao' | 'naver') => {
@@ -89,6 +89,8 @@ export function useAuthHandlers({
     console.log('[useAuthHandlers] 로그아웃 시작');
     
     try {
+      // 항상 최신 AuthManager로 AuthActions 인스턴스 생성
+      const authActions = getAuthActions();
       const success = await authActions.signOut();
       if (success) {
         console.log('[useAuthHandlers] 로그아웃 성공');
@@ -104,7 +106,7 @@ export function useAuthHandlers({
       // 예외 발생해도 스플래시 화면으로 이동 (로컬 세션 정리)
       handleBackToSplash();
     }
-  }, [authActions, handleBackToSplash]);
+  }, [getAuthActions, handleBackToSplash]);
 
   return {
     handleOAuthLogin,

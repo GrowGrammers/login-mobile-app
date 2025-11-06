@@ -5,7 +5,7 @@
  * @format
  */
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import { 
   StatusBar, 
   StyleSheet, 
@@ -124,12 +124,14 @@ function LoginMobileApp({
   });
   
   const { authState, clearError, refreshSession } = useAuthState(currentAuthManager);
-  
-  // AuthActions 인스턴스 생성 (현재 AuthManager 기준)
-  const authActions = new AuthActions(currentAuthManager);
 
   console.log('[App] 현재 인증 상태:', authState);
   console.log('[App] 현재 화면:', currentScreen);
+
+  // AuthActions 팩토리 함수: 항상 최신 currentAuthManager로 인스턴스 생성
+  const getAuthActions = useCallback(() => {
+    return new AuthActions(currentAuthManager);
+  }, [currentAuthManager]);
 
   // 인증 핸들러 훅 사용
   const { handleOAuthLogin, handleLogout } = useAuthHandlers({
@@ -142,7 +144,7 @@ function LoginMobileApp({
     switchToNaverAuth,
     clearError,
     handleBackToSplash,
-    authActions,
+    getAuthActions,
   });
 
   // React Navigation으로 전환 - 조건부 렌더링 제거
